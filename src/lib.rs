@@ -4,8 +4,13 @@
 //! exported by [libbsd](https://libbsd.freedesktop.org/), a library that
 //! provides commonly-used BSD functions on GNU/Linux systems.
 //!
-//! The crate uses `pkg-config` at build time to locate the library. On
-//! Debian/Ubuntu, install the development headers with:
+//! On macOS, most of these functions are already part of the system C library
+//! (libSystem), so no additional library is needed. Functions that are
+//! libbsd-specific and not available on macOS are gated behind
+//! `#[cfg(not(target_os = "macos"))]`.
+//!
+//! On Linux, the crate uses `pkg-config` at build time to locate the library.
+//! On Debian/Ubuntu, install the development headers with:
 //!
 //! ```sh
 //! apt install libbsd-dev
@@ -41,9 +46,12 @@ extern "C" {
     pub fn arc4random() -> u32;
     pub fn arc4random_buf(buf: *mut c_void, n: size_t);
     pub fn arc4random_uniform(upper_bound: u32) -> u32;
+    #[cfg(not(target_os = "macos"))]
     pub fn arc4random_stir();
+    #[cfg(not(target_os = "macos"))]
     pub fn arc4random_addrandom(dat: *mut c_uchar, datlen: c_int);
 
+    #[cfg(not(target_os = "macos"))]
     pub fn dehumanize_number(str_: *const c_char, size: *mut i64) -> c_int;
 
     pub fn getprogname() -> *const c_char;
@@ -76,12 +84,14 @@ extern "C" {
 
     pub fn reallocf(ptr: *mut c_void, size: size_t) -> *mut c_void;
     pub fn reallocarray(ptr: *mut c_void, nmemb: size_t, size: size_t) -> *mut c_void;
+    #[cfg(not(target_os = "macos"))]
     pub fn recallocarray(
         ptr: *mut c_void,
         oldnmemb: size_t,
         nmemb: size_t,
         size: size_t,
     ) -> *mut c_void;
+    #[cfg(not(target_os = "macos"))]
     pub fn freezero(ptr: *mut c_void, size: size_t);
 
     pub fn strtonum(
@@ -101,6 +111,7 @@ extern "C" {
 extern "C" {
     pub static mut optreset: c_int;
 
+    #[cfg(not(target_os = "macos"))]
     pub fn bsd_getopt(
         argc: c_int,
         argv: *const *mut c_char,
@@ -112,7 +123,9 @@ extern "C" {
 
     pub fn closefrom(lowfd: c_int);
 
+    #[cfg(not(target_os = "macos"))]
     pub fn setproctitle_init(argc: c_int, argv: *mut *mut c_char, envp: *mut *mut c_char);
+    #[cfg(not(target_os = "macos"))]
     pub fn setproctitle(fmt: *const c_char, ...);
 
     pub fn getpeereid(s: c_int, euid: *mut uid_t, egid: *mut gid_t) -> c_int;
@@ -212,7 +225,12 @@ extern "C" {
 
     pub fn strvis(dst: *mut c_char, src: *const c_char, flag: c_int) -> c_int;
     pub fn stravis(dst: *mut *mut c_char, src: *const c_char, flag: c_int) -> c_int;
+    // NB: strnvis has different parameter order on macOS (NetBSD convention)
+    // vs libbsd/FreeBSD.
+    #[cfg(not(target_os = "macos"))]
     pub fn strnvis(dst: *mut c_char, src: *const c_char, dlen: size_t, flag: c_int) -> c_int;
+    #[cfg(target_os = "macos")]
+    pub fn strnvis(dst: *mut c_char, dlen: size_t, src: *const c_char, flag: c_int) -> c_int;
 
     pub fn strsvis(
         dst: *mut c_char,
@@ -271,7 +289,10 @@ extern "C" {
     ) -> c_int;
 
     pub fn strunvis(dst: *mut c_char, src: *const c_char) -> c_int;
+    #[cfg(not(target_os = "macos"))]
     pub fn strnunvis(dst: *mut c_char, src: *const c_char, dlen: size_t) -> ssize_t;
+    #[cfg(target_os = "macos")]
+    pub fn strnunvis(dst: *mut c_char, dlen: size_t, src: *const c_char) -> c_int;
 
     pub fn strunvisx(dst: *mut c_char, src: *const c_char, flag: c_int) -> c_int;
     pub fn strnunvisx(dst: *mut c_char, dlen: size_t, src: *const c_char, flag: c_int) -> c_int;
@@ -283,12 +304,19 @@ extern "C" {
 // <bsd/libutil.h>
 // ---------------------------------------------------------------------------
 
+#[cfg(not(target_os = "macos"))]
 pub const HN_DECIMAL: c_int = 0x01;
+#[cfg(not(target_os = "macos"))]
 pub const HN_NOSPACE: c_int = 0x02;
+#[cfg(not(target_os = "macos"))]
 pub const HN_B: c_int = 0x04;
+#[cfg(not(target_os = "macos"))]
 pub const HN_DIVISOR_1000: c_int = 0x08;
+#[cfg(not(target_os = "macos"))]
 pub const HN_IEC_PREFIXES: c_int = 0x10;
+#[cfg(not(target_os = "macos"))]
 pub const HN_GETSCALE: c_int = 0x10;
+#[cfg(not(target_os = "macos"))]
 pub const HN_AUTOSCALE: c_int = 0x20;
 
 pub const FPARSELN_UNESCESC: c_int = 0x01;
@@ -297,11 +325,13 @@ pub const FPARSELN_UNESCCOMM: c_int = 0x04;
 pub const FPARSELN_UNESCREST: c_int = 0x08;
 pub const FPARSELN_UNESCALL: c_int = 0x0f;
 
+#[cfg(not(target_os = "macos"))]
 #[repr(C)]
 pub struct pidfh {
     _opaque: [u8; 0],
 }
 
+#[cfg(not(target_os = "macos"))]
 extern "C" {
     pub fn humanize_number(
         buf: *mut c_char,
@@ -321,7 +351,9 @@ extern "C" {
     pub fn pidfile_write(pfh: *mut pidfh) -> c_int;
     pub fn pidfile_close(pfh: *mut pidfh) -> c_int;
     pub fn pidfile_remove(pfh: *mut pidfh) -> c_int;
+}
 
+extern "C" {
     pub fn fparseln(
         fp: *mut FILE,
         size: *mut size_t,
@@ -335,6 +367,8 @@ extern "C" {
 // <bsd/nlist.h>
 // ---------------------------------------------------------------------------
 
+// On macOS, struct nlist has a different layout (Mach-O format).
+#[cfg(not(target_os = "macos"))]
 #[repr(C)]
 pub struct nlist {
     pub n_name: *mut c_char,
@@ -365,6 +399,7 @@ pub const N_EXT: u8 = 0x01;
 pub const N_TYPE: u8 = 0x1e;
 pub const N_STAB: u8 = 0xe0;
 
+#[cfg(not(target_os = "macos"))]
 extern "C" {
     pub fn nlist(filename: *const c_char, list: *mut nlist) -> c_int;
 }
@@ -385,6 +420,7 @@ extern "C" {
     pub fn sl_add(sl: *mut StringList, item: *mut c_char) -> c_int;
     pub fn sl_free(sl: *mut StringList, freel: c_int);
     pub fn sl_find(sl: *mut StringList, name: *const c_char) -> *mut c_char;
+    #[cfg(not(target_os = "macos"))]
     pub fn sl_delete(sl: *mut StringList, name: *const c_char, freel: c_int) -> c_int;
 }
 
@@ -392,6 +428,7 @@ extern "C" {
 // <bsd/timeconv.h>
 // ---------------------------------------------------------------------------
 
+#[cfg(not(target_os = "macos"))]
 extern "C" {
     #[link_name = "_time32_to_time"]
     pub fn time32_to_time(t32: i32) -> libc::time_t;
@@ -488,6 +525,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(not(target_os = "macos"))]
     fn smoke_humanize_number() {
         let mut buf = [0u8; 16];
         unsafe {
