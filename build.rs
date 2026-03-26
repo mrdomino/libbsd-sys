@@ -21,9 +21,12 @@ fn main() {
 
     let pkg = if overlay { "libbsd-overlay" } else { "libbsd" };
 
-    let lib = pkg_config::Config::new()
-        .atleast_version("0.11")
-        .statik(statik)
+    let mut cfg = pkg_config::Config::new();
+    cfg.atleast_version("0.11");
+    if statik {
+        cfg.statik(true);
+    }
+    let lib = cfg
         .probe(pkg)
         .unwrap_or_else(|e| panic!("{pkg} not found: {e}; install libbsd-dev"));
 
