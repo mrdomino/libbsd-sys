@@ -13,7 +13,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        features: ["", "overlay"]
+        features: ["", "overlay,static"]
     steps:
       - uses: actions/checkout@v6
       - name: Install libbsd-dev
