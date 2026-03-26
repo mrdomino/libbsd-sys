@@ -3,7 +3,7 @@ name = "libbsd-sys"
 version = "0.1.0"
 edition = "2021"
 description = "Raw FFI bindings to libbsd"
-license = "ISC"
+license = "MIT OR Apache-2.0 OR ISC"
 links = "bsd"
 
 [dependencies]
