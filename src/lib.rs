@@ -42,7 +42,7 @@ pub use libc::{gid_t, mode_t, off_t, pid_t, size_t, ssize_t, uid_t, FILE};
 // <bsd/string.h>
 // ---------------------------------------------------------------------------
 
-extern "C" {
+unsafe extern "C" {
     pub fn strlcpy(dst: *mut c_char, src: *const c_char, siz: size_t) -> size_t;
     pub fn strlcat(dst: *mut c_char, src: *const c_char, siz: size_t) -> size_t;
     pub fn strnstr(s: *const c_char, find: *const c_char, slen: size_t) -> *mut c_char;
@@ -54,7 +54,7 @@ extern "C" {
 // <bsd/stdlib.h>
 // ---------------------------------------------------------------------------
 
-extern "C" {
+unsafe extern "C" {
     pub fn arc4random() -> u32;
     pub fn arc4random_buf(buf: *mut c_void, n: size_t);
     pub fn arc4random_uniform(upper_bound: u32) -> u32;
@@ -120,7 +120,7 @@ extern "C" {
 // <bsd/unistd.h>
 // ---------------------------------------------------------------------------
 
-extern "C" {
+unsafe extern "C" {
     pub static mut optreset: c_int;
 
     #[cfg(target_os = "linux")]
@@ -143,7 +143,7 @@ extern "C" {
 // <bsd/stdio.h>
 // ---------------------------------------------------------------------------
 
-extern "C" {
+unsafe extern "C" {
     pub fn fmtcheck(f1: *const c_char, f2: *const c_char) -> *const c_char;
 
     pub fn fgetln(fp: *mut FILE, lenp: *mut size_t) -> *mut c_char;
@@ -171,7 +171,7 @@ pub const RPP_FORCEUPPER: c_int = 0x08;
 pub const RPP_SEVENBIT: c_int = 0x10;
 pub const RPP_STDIN: c_int = 0x20;
 
-extern "C" {
+unsafe extern "C" {
     pub fn readpassphrase(
         prompt: *const c_char,
         buf: *mut c_char,
@@ -210,7 +210,7 @@ pub const UNVIS_SYNBAD: c_int = -1;
 pub const UNVIS_ERROR: c_int = -2;
 pub const UNVIS_END: c_int = 0x0800;
 
-extern "C" {
+unsafe extern "C" {
     pub fn vis(dst: *mut c_char, c: c_int, flag: c_int, nextc: c_int) -> *mut c_char;
     pub fn nvis(dst: *mut c_char, dlen: size_t, c: c_int, flag: c_int, nextc: c_int)
         -> *mut c_char;
@@ -341,7 +341,7 @@ pub struct pidfh {
 }
 
 #[cfg(any(target_os = "linux", target_os = "freebsd", target_os = "netbsd"))]
-extern "C" {
+unsafe extern "C" {
     pub fn humanize_number(
         buf: *mut c_char,
         len: size_t,
@@ -362,7 +362,7 @@ extern "C" {
     pub fn pidfile_remove(pfh: *mut pidfh) -> c_int;
 }
 
-extern "C" {
+unsafe extern "C" {
     pub fn fparseln(
         fp: *mut FILE,
         size: *mut size_t,
@@ -409,7 +409,7 @@ pub const N_TYPE: u8 = 0x1e;
 pub const N_STAB: u8 = 0xe0;
 
 #[cfg(not(target_os = "macos"))]
-extern "C" {
+unsafe extern "C" {
     pub fn nlist(filename: *const c_char, list: *mut nlist) -> c_int;
 }
 
@@ -424,7 +424,7 @@ pub struct StringList {
     pub sl_cur: size_t,
 }
 
-extern "C" {
+unsafe extern "C" {
     pub fn sl_init() -> *mut StringList;
     pub fn sl_add(sl: *mut StringList, item: *mut c_char) -> c_int;
     pub fn sl_free(sl: *mut StringList, freel: c_int);
@@ -438,7 +438,7 @@ extern "C" {
 // ---------------------------------------------------------------------------
 
 #[cfg(target_os = "linux")]
-extern "C" {
+unsafe extern "C" {
     #[link_name = "_time32_to_time"]
     pub fn time32_to_time(t32: i32) -> libc::time_t;
     #[link_name = "_time_to_time32"]
@@ -461,7 +461,7 @@ extern "C" {
 // <bsd/err.h>  (non-variadic subset)
 // ---------------------------------------------------------------------------
 
-extern "C" {
+unsafe extern "C" {
     pub fn warnc(code: c_int, format: *const c_char, ...);
     pub fn errc(status: c_int, code: c_int, format: *const c_char, ...) -> !;
 }
@@ -470,7 +470,7 @@ extern "C" {
 // <bsd/wchar.h>
 // ---------------------------------------------------------------------------
 
-extern "C" {
+unsafe extern "C" {
     pub fn fgetwln(stream: *mut FILE, len: *mut size_t) -> *mut libc::wchar_t;
     pub fn wcslcat(dst: *mut libc::wchar_t, src: *const libc::wchar_t, size: size_t) -> size_t;
     pub fn wcslcpy(dst: *mut libc::wchar_t, src: *const libc::wchar_t, size: size_t) -> size_t;
@@ -480,7 +480,7 @@ extern "C" {
 // <bsd/grp.h>
 // ---------------------------------------------------------------------------
 
-extern "C" {
+unsafe extern "C" {
     pub fn gid_from_group(name: *const c_char, gid: *mut gid_t) -> c_int;
     pub fn group_from_gid(gid: gid_t, nosuchgroup: c_int) -> *const c_char;
 }
@@ -489,7 +489,7 @@ extern "C" {
 // <bsd/pwd.h>
 // ---------------------------------------------------------------------------
 
-extern "C" {
+unsafe extern "C" {
     pub fn uid_from_user(name: *const c_char, uid: *mut uid_t) -> c_int;
     pub fn user_from_uid(uid: uid_t, nosuchuser: c_int) -> *const c_char;
 }
@@ -498,7 +498,7 @@ extern "C" {
 // Misc functions found in libbsd without a dedicated header
 // ---------------------------------------------------------------------------
 
-extern "C" {
+unsafe extern "C" {
     pub fn inet_net_pton(af: c_int, src: *const c_char, dst: *mut c_void, size: size_t) -> c_int;
 }
 
