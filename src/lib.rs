@@ -33,9 +33,7 @@
 use core::ffi::{c_char, c_int, c_long, c_uchar, c_uint, c_void};
 
 // Re-export libc types used in signatures.
-pub use libc::{
-    gid_t, mode_t, off_t, pid_t, size_t, ssize_t, uid_t, FILE,
-};
+pub use libc::{gid_t, mode_t, off_t, pid_t, size_t, ssize_t, uid_t, FILE};
 
 // ---------------------------------------------------------------------------
 // <bsd/string.h>
@@ -123,11 +121,7 @@ extern "C" {
     pub static mut optreset: c_int;
 
     #[cfg(target_os = "linux")]
-    pub fn bsd_getopt(
-        argc: c_int,
-        argv: *const *mut c_char,
-        shortopts: *const c_char,
-    ) -> c_int;
+    pub fn bsd_getopt(argc: c_int, argv: *const *mut c_char, shortopts: *const c_char) -> c_int;
 
     pub fn getmode(set: *const c_void, mode: mode_t) -> mode_t;
     pub fn setmode(mode_str: *const c_char) -> *mut c_void;
@@ -502,12 +496,7 @@ extern "C" {
 // ---------------------------------------------------------------------------
 
 extern "C" {
-    pub fn inet_net_pton(
-        af: c_int,
-        src: *const c_char,
-        dst: *mut c_void,
-        size: size_t,
-    ) -> c_int;
+    pub fn inet_net_pton(af: c_int, src: *const c_char, dst: *mut c_void, size: size_t) -> c_int;
 }
 
 #[cfg(test)]
