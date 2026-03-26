@@ -30,6 +30,9 @@
 #![no_std]
 #![allow(non_camel_case_types)]
 
+#[cfg(target_os = "windows")]
+compile_error!("libbsd-sys does not support Windows");
+
 use core::ffi::{c_char, c_int, c_long, c_uchar, c_uint, c_void};
 
 // Re-export libc types used in signatures.
