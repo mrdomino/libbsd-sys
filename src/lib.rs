@@ -36,7 +36,7 @@ compile_error!("libbsd-sys does not support Windows");
 use core::ffi::{c_char, c_int, c_long, c_uchar, c_uint, c_void};
 
 // Re-export libc types used in signatures.
-pub use libc::{gid_t, mode_t, off_t, pid_t, size_t, ssize_t, uid_t, FILE};
+pub use libc::{FILE, gid_t, mode_t, off_t, pid_t, size_t, ssize_t, uid_t};
 
 // ---------------------------------------------------------------------------
 // <bsd/string.h>
@@ -213,7 +213,7 @@ pub const UNVIS_END: c_int = 0x0800;
 unsafe extern "C" {
     pub fn vis(dst: *mut c_char, c: c_int, flag: c_int, nextc: c_int) -> *mut c_char;
     pub fn nvis(dst: *mut c_char, dlen: size_t, c: c_int, flag: c_int, nextc: c_int)
-        -> *mut c_char;
+    -> *mut c_char;
 
     pub fn svis(
         dst: *mut c_char,
