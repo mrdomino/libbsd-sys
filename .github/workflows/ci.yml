@@ -1,0 +1,82 @@
+name: CI
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  linux:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install libbsd-dev
+        run: sudo apt-get update && sudo apt-get install -y libbsd-dev
+      - uses: dtolnay/rust-toolchain@stable
+      - run: cargo build --verbose
+      - run: cargo test --verbose
+
+  macos:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - run: cargo build --verbose
+      - run: cargo test --verbose
+
+  freebsd:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build and test on FreeBSD
+        uses: vmactions/freebsd-vm@v1
+        with:
+          usesh: true
+          prepare: |
+            pkg install -y rust
+          run: |
+            cargo build --verbose
+            cargo test --verbose
+
+  openbsd:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build and test on OpenBSD
+        uses: vmactions/openbsd-vm@v1
+        with:
+          usesh: true
+          prepare: |
+            pkg_add rust
+          run: |
+            cargo build --verbose
+            cargo test --verbose
+
+  netbsd:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build and test on NetBSD
+        uses: vmactions/netbsd-vm@v1
+        with:
+          usesh: true
+          prepare: |
+            pkgin -y install rust
+          run: |
+            cargo build --verbose
+            cargo test --verbose
+
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install libbsd-dev
+        run: sudo apt-get update && sudo apt-get install -y libbsd-dev
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy, rustfmt
+      - run: cargo fmt -- --check
+      - run: cargo clippy -- -D warnings
