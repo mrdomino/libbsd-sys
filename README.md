@@ -1,6 +1,6 @@
 # libbsd-sys - raw FFI bindings to libbsd
 
-_**Caveat non emptor:** This crate is AI-generated, perhaps even “vibe-coded,” and free as in “you get what you pay for.”
+_**Caveat non emptor:** This crate is AI-generated, perhaps even “vibe-coded,” and free as in “you get what you pay for.”_
 
 The readme, though — that’s by me (including the em-dashes.)
 
