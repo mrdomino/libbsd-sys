@@ -14,8 +14,8 @@ fn main() {
         _ => {}
     }
 
-    let statik = cfg!(feature = "static");
-    let overlay = cfg!(feature = "overlay");
+    let statik = std::env::var_os("CARGO_FEATURE_STATIC").is_some();
+    let overlay = std::env::var_os("CARGO_FEATURE_OVERLAY").is_some();
 
     let pkg = if overlay { "libbsd-overlay" } else { "libbsd" };
 
