@@ -14,6 +14,8 @@ fn main() {
         _ => {}
     }
 
+    println!("cargo::rerun-if-env-changed=CARGO_FEATURE_STATIC");
+    println!("cargo::rerun-if-env-changed=CARGO_FEATURE_OVERLAY");
     let statik = std::env::var_os("CARGO_FEATURE_STATIC").is_some();
     let overlay = std::env::var_os("CARGO_FEATURE_OVERLAY").is_some();
 
