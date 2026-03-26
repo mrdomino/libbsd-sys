@@ -6,7 +6,7 @@
 //!
 //! # Platform support
 //!
-//! On **macOS**, **FreeBSD**, **OpenBSD**, **NetBSD**, and **DragonFlyBSD**,
+//! On **macOS**, **FreeBSD**, **OpenBSD**, and **NetBSD**,
 //! most of these functions are already part of the system C library, so no
 //! additional library is needed.
 //!
@@ -233,7 +233,7 @@ extern "C" {
     // NB: strnvis has different parameter order depending on the platform's
     // convention: FreeBSD (and libbsd) put src before dlen, while NetBSD
     // (and macOS/OpenBSD) put dlen before src.
-    #[cfg(any(target_os = "linux", target_os = "freebsd", target_os = "dragonfly"))]
+    #[cfg(any(target_os = "linux", target_os = "freebsd"))]
     pub fn strnvis(dst: *mut c_char, src: *const c_char, dlen: size_t, flag: c_int) -> c_int;
     #[cfg(any(target_os = "macos", target_os = "netbsd", target_os = "openbsd"))]
     pub fn strnvis(dst: *mut c_char, dlen: size_t, src: *const c_char, flag: c_int) -> c_int;
@@ -295,7 +295,7 @@ extern "C" {
     ) -> c_int;
 
     pub fn strunvis(dst: *mut c_char, src: *const c_char) -> c_int;
-    #[cfg(any(target_os = "linux", target_os = "freebsd", target_os = "dragonfly"))]
+    #[cfg(any(target_os = "linux", target_os = "freebsd"))]
     pub fn strnunvis(dst: *mut c_char, src: *const c_char, dlen: size_t) -> ssize_t;
     #[cfg(any(target_os = "macos", target_os = "netbsd", target_os = "openbsd"))]
     pub fn strnunvis(dst: *mut c_char, dlen: size_t, src: *const c_char) -> c_int;
@@ -310,54 +310,19 @@ extern "C" {
 // <bsd/libutil.h>
 // ---------------------------------------------------------------------------
 
-#[cfg(any(
-    target_os = "linux",
-    target_os = "freebsd",
-    target_os = "netbsd",
-    target_os = "dragonfly"
-))]
+#[cfg(any(target_os = "linux", target_os = "freebsd", target_os = "netbsd"))]
 pub const HN_DECIMAL: c_int = 0x01;
-#[cfg(any(
-    target_os = "linux",
-    target_os = "freebsd",
-    target_os = "netbsd",
-    target_os = "dragonfly"
-))]
+#[cfg(any(target_os = "linux", target_os = "freebsd", target_os = "netbsd"))]
 pub const HN_NOSPACE: c_int = 0x02;
-#[cfg(any(
-    target_os = "linux",
-    target_os = "freebsd",
-    target_os = "netbsd",
-    target_os = "dragonfly"
-))]
+#[cfg(any(target_os = "linux", target_os = "freebsd", target_os = "netbsd"))]
 pub const HN_B: c_int = 0x04;
-#[cfg(any(
-    target_os = "linux",
-    target_os = "freebsd",
-    target_os = "netbsd",
-    target_os = "dragonfly"
-))]
+#[cfg(any(target_os = "linux", target_os = "freebsd", target_os = "netbsd"))]
 pub const HN_DIVISOR_1000: c_int = 0x08;
-#[cfg(any(
-    target_os = "linux",
-    target_os = "freebsd",
-    target_os = "netbsd",
-    target_os = "dragonfly"
-))]
+#[cfg(any(target_os = "linux", target_os = "freebsd", target_os = "netbsd"))]
 pub const HN_IEC_PREFIXES: c_int = 0x10;
-#[cfg(any(
-    target_os = "linux",
-    target_os = "freebsd",
-    target_os = "netbsd",
-    target_os = "dragonfly"
-))]
+#[cfg(any(target_os = "linux", target_os = "freebsd", target_os = "netbsd"))]
 pub const HN_GETSCALE: c_int = 0x10;
-#[cfg(any(
-    target_os = "linux",
-    target_os = "freebsd",
-    target_os = "netbsd",
-    target_os = "dragonfly"
-))]
+#[cfg(any(target_os = "linux", target_os = "freebsd", target_os = "netbsd"))]
 pub const HN_AUTOSCALE: c_int = 0x20;
 
 pub const FPARSELN_UNESCESC: c_int = 0x01;
@@ -366,23 +331,13 @@ pub const FPARSELN_UNESCCOMM: c_int = 0x04;
 pub const FPARSELN_UNESCREST: c_int = 0x08;
 pub const FPARSELN_UNESCALL: c_int = 0x0f;
 
-#[cfg(any(
-    target_os = "linux",
-    target_os = "freebsd",
-    target_os = "netbsd",
-    target_os = "dragonfly"
-))]
+#[cfg(any(target_os = "linux", target_os = "freebsd", target_os = "netbsd"))]
 #[repr(C)]
 pub struct pidfh {
     _opaque: [u8; 0],
 }
 
-#[cfg(any(
-    target_os = "linux",
-    target_os = "freebsd",
-    target_os = "netbsd",
-    target_os = "dragonfly"
-))]
+#[cfg(any(target_os = "linux", target_os = "freebsd", target_os = "netbsd"))]
 extern "C" {
     pub fn humanize_number(
         buf: *mut c_char,
@@ -571,12 +526,7 @@ mod tests {
     }
 
     #[test]
-    #[cfg(any(
-        target_os = "linux",
-        target_os = "freebsd",
-        target_os = "netbsd",
-        target_os = "dragonfly"
-    ))]
+    #[cfg(any(target_os = "linux", target_os = "freebsd", target_os = "netbsd"))]
     fn smoke_humanize_number() {
         let mut buf = [0u8; 16];
         unsafe {

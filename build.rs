@@ -4,10 +4,9 @@ fn main() {
         // On macOS, OpenBSD, and NetBSD the BSD functions live in libc
         // (or libSystem on macOS), so no extra library is needed.
         "macos" | "openbsd" | "netbsd" => return,
-        // On FreeBSD and DragonFlyBSD, most functions are in libc, but
-        // humanize_number, pidfile_*, flopen, and expand_number live in
-        // libutil.
-        "freebsd" | "dragonfly" => {
+        // On FreeBSD, most functions are in libc, but humanize_number,
+        // pidfile_*, flopen, and expand_number live in libutil.
+        "freebsd" => {
             println!("cargo::rustc-link-lib=util");
             return;
         }
