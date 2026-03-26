@@ -14,8 +14,20 @@ fn main() {
         _ => {}
     }
 
-    pkg_config::Config::new()
+    let statik = cfg!(feature = "static");
+    let overlay = cfg!(feature = "overlay");
+
+    let pkg = if overlay { "libbsd-overlay" } else { "libbsd" };
+
+    let lib = pkg_config::Config::new()
         .atleast_version("0.11")
-        .probe("libbsd")
-        .expect("libbsd not found; install libbsd-dev");
+        .statik(statik)
+        .probe(pkg)
+        .unwrap_or_else(|e| panic!("{pkg} not found: {e}; install libbsd-dev"));
+
+    // Re-export include paths so downstream build scripts can use them via
+    // DEP_BSD_INCLUDE (one path per line).
+    for path in &lib.include_paths {
+        println!("cargo::metadata=include={}", path.display());
+    }
 }
