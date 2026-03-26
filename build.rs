@@ -11,9 +11,7 @@ fn main() {
             println!("cargo:rustc-link-lib=util");
             return;
         }
-        "windows" => {
-            panic!("libbsd-sys does not support Windows");
-        }
+        "windows" => return,
         // Everything else (Linux, etc.) needs the libbsd library.
         _ => {}
     }
