@@ -310,19 +310,19 @@ extern "C" {
 // <bsd/libutil.h>
 // ---------------------------------------------------------------------------
 
-#[cfg(not(target_os = "macos"))]
+#[cfg(any(target_os = "linux", target_os = "freebsd", target_os = "netbsd", target_os = "dragonfly"))]
 pub const HN_DECIMAL: c_int = 0x01;
-#[cfg(not(target_os = "macos"))]
+#[cfg(any(target_os = "linux", target_os = "freebsd", target_os = "netbsd", target_os = "dragonfly"))]
 pub const HN_NOSPACE: c_int = 0x02;
-#[cfg(not(target_os = "macos"))]
+#[cfg(any(target_os = "linux", target_os = "freebsd", target_os = "netbsd", target_os = "dragonfly"))]
 pub const HN_B: c_int = 0x04;
-#[cfg(not(target_os = "macos"))]
+#[cfg(any(target_os = "linux", target_os = "freebsd", target_os = "netbsd", target_os = "dragonfly"))]
 pub const HN_DIVISOR_1000: c_int = 0x08;
-#[cfg(not(target_os = "macos"))]
+#[cfg(any(target_os = "linux", target_os = "freebsd", target_os = "netbsd", target_os = "dragonfly"))]
 pub const HN_IEC_PREFIXES: c_int = 0x10;
-#[cfg(not(target_os = "macos"))]
+#[cfg(any(target_os = "linux", target_os = "freebsd", target_os = "netbsd", target_os = "dragonfly"))]
 pub const HN_GETSCALE: c_int = 0x10;
-#[cfg(not(target_os = "macos"))]
+#[cfg(any(target_os = "linux", target_os = "freebsd", target_os = "netbsd", target_os = "dragonfly"))]
 pub const HN_AUTOSCALE: c_int = 0x20;
 
 pub const FPARSELN_UNESCESC: c_int = 0x01;
@@ -331,13 +331,13 @@ pub const FPARSELN_UNESCCOMM: c_int = 0x04;
 pub const FPARSELN_UNESCREST: c_int = 0x08;
 pub const FPARSELN_UNESCALL: c_int = 0x0f;
 
-#[cfg(not(target_os = "macos"))]
+#[cfg(any(target_os = "linux", target_os = "freebsd", target_os = "netbsd", target_os = "dragonfly"))]
 #[repr(C)]
 pub struct pidfh {
     _opaque: [u8; 0],
 }
 
-#[cfg(not(target_os = "macos"))]
+#[cfg(any(target_os = "linux", target_os = "freebsd", target_os = "netbsd", target_os = "dragonfly"))]
 extern "C" {
     pub fn humanize_number(
         buf: *mut c_char,
@@ -526,7 +526,7 @@ mod tests {
     }
 
     #[test]
-    #[cfg(not(target_os = "macos"))]
+    #[cfg(any(target_os = "linux", target_os = "freebsd", target_os = "netbsd", target_os = "dragonfly"))]
     fn smoke_humanize_number() {
         let mut buf = [0u8; 16];
         unsafe {
