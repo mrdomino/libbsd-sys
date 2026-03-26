@@ -1,4 +1,4 @@
-# libbsd-sys - raw FFI bindings for BSD functions
+# libbsd-sys - raw FFI bindings to libbsd
 
 _**Caveat non emptor:** This crate is AI-generated, perhaps even “vibe-coded,” and free as in “you get what you pay for.”
 
