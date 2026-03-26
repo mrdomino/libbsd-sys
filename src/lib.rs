@@ -27,6 +27,9 @@
 //! depending on whether the platform follows the NetBSD convention (macOS,
 //! NetBSD, OpenBSD) or the FreeBSD convention (FreeBSD, Linux/libbsd).
 
+#[cfg(target_os = "windows")]
+compile_error!("libbsd-sys does not support Windows");
+
 #![no_std]
 #![allow(non_camel_case_types)]
 
