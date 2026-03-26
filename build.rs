@@ -11,6 +11,7 @@ fn main() {
             println!("cargo:rustc-link-lib=util");
             return;
         }
+        // Windows is not supported; it is a compile error later on.
         "windows" => return,
         // Everything else (Linux, etc.) needs the libbsd library.
         _ => {}
