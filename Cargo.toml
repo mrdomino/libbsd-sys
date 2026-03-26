@@ -1,11 +1,15 @@
 [package]
 name = "libbsd-sys"
 version = "0.1.0"
+categories = ["external-ffi-bindings", "no-std"]
 edition = "2024"
-rust-version = "1.85"
-description = "Raw FFI bindings to libbsd"
+exclude = [".github/**", ".gitignore"]
+keywords = ["libbsd", "ffi", "strlcpy", "strlcat", "readpassphrase"]
 license = "MIT OR Apache-2.0 OR ISC"
 links = "bsd"
+readme = "README.md"
+rust-version = "1.85"
+description = "Raw FFI bindings to libbsd"
 
 [features]
 # Link libbsd statically (Linux only; ignored on native BSDs).
