@@ -6,6 +6,16 @@ description = "Raw FFI bindings to libbsd"
 license = "MIT OR Apache-2.0 OR ISC"
 links = "bsd"
 
+[features]
+# Link libbsd statically (Linux only; ignored on native BSDs).
+static = []
+# Use libbsd overlay mode (Linux only).  In overlay mode the libbsd headers
+# shadow the standard C headers, so downstream -sys crates that compile C code
+# can use plain `<string.h>` instead of `<bsd/string.h>`.  The `DEP_BSD_*`
+# metadata exported to dependent build scripts will include the overlay include
+# paths and `-DLIBBSD_OVERLAY`.
+overlay = []
+
 [dependencies]
 libc = "0.2"
 
