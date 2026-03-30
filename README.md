@@ -13,7 +13,7 @@ I do not mean to be squatting on this highly valuable crate name with slop. I do
 ## Usage
 Add the following to your `Cargo.toml`:
 ```toml
-[dependencies]
+[target.'cfg(not(target_os = "windows"))'.dependencies]
 libbsd-sys = "0.1"
 ```
 
