@@ -317,14 +317,18 @@ unsafe extern "C" {
     ) -> c_int;
     pub fn expand_number(buf: *const c_char, num: *mut u64) -> c_int;
 
-    pub fn flopen(path: *const c_char, flags: c_int, ...) -> c_int;
-    pub fn flopenat(dirfd: c_int, path: *const c_char, flags: c_int, ...) -> c_int;
-
     pub fn pidfile_open(path: *const c_char, mode: mode_t, pidptr: *mut pid_t) -> *mut pidfh;
     pub fn pidfile_fileno(pfh: *const pidfh) -> c_int;
     pub fn pidfile_write(pfh: *mut pidfh) -> c_int;
     pub fn pidfile_close(pfh: *mut pidfh) -> c_int;
     pub fn pidfile_remove(pfh: *mut pidfh) -> c_int;
+}
+
+// flopen/flopenat are FreeBSD-specific; not available on NetBSD.
+#[cfg(any(target_os = "linux", target_os = "freebsd"))]
+unsafe extern "C" {
+    pub fn flopen(path: *const c_char, flags: c_int, ...) -> c_int;
+    pub fn flopenat(dirfd: c_int, path: *const c_char, flags: c_int, ...) -> c_int;
 }
 
 unsafe extern "C" {

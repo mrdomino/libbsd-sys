@@ -368,7 +368,13 @@ mod tests {
         let _: unsafe extern "C" fn(*mut pidfh) -> c_int = pidfile_write;
         let _: unsafe extern "C" fn(*mut pidfh) -> c_int = pidfile_close;
         let _: unsafe extern "C" fn(*mut pidfh) -> c_int = pidfile_remove;
-        // flopen and flopenat are variadic; verify linkage by calling.
+    }
+
+    // flopen/flopenat are FreeBSD-specific; not available on NetBSD.
+    #[test]
+    #[cfg(any(target_os = "linux", target_os = "freebsd"))]
+    fn link_flopen() {
+        // Variadic; verify linkage by calling.
         unsafe {
             let fd = flopen(b"/dev/null\0".as_ptr().cast(), 0);
             if fd >= 0 {
