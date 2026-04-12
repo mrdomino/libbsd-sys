@@ -24,6 +24,28 @@ On Linux, the following crate features are available:
 
 On non-Linux, these features are no-ops.
 
+## Environment variables
+
+The build script recognizes the following environment variables:
+
+* `LIBBSD_NO_PKG_CONFIG` — skip `pkg-config` entirely.  The build script will
+  emit `cargo:rustc-link-lib=bsd` without any search path.  Useful for running
+  `cargo clippy` in CI without `libbsd-dev` installed.
+* `LIBBSD_LIB_DIR` — path to the directory containing the libbsd library.
+  Implies `LIBBSD_NO_PKG_CONFIG`.
+* `LIBBSD_INCLUDE_DIR` — path(s) to libbsd headers (colon-separated on Unix).
+  Only used in the manual override path.
+* `LIBBSD_STATIC` — `1`/`true`/`yes` to force static linking, `0`/`false`/`no`
+  to force dynamic.  Overrides the `static` crate feature.
+* `DOCS_RS` — when set (as it is automatically on docs.rs), the build script
+  skips all linking.
+
+## Metadata for dependent crates
+
+This crate sets `links = "bsd"`, so dependent build scripts can read:
+
+* `DEP_BSD_INCLUDE` — include paths for libbsd headers (one per line).
+
 ## Requirements
 On Linux, [libbsd][2] is required. Usually the package will be named something like `libbsd-dev` or `libbsd-devel`. If you do not use the `static` feature, then your users will also have to have the non-devel `libbsd` package installed.
 
