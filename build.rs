@@ -97,14 +97,30 @@ fn main() {
     if statik {
         cfg.statik(true);
     }
-    let lib = cfg.probe(pkg).unwrap_or_else(|e| {
-        panic!(
-            "{pkg} not found via pkg-config: {e}\n\
-             help: install the development package (e.g. `apt install libbsd-dev`)\n\
-             help: or set LIBBSD_LIB_DIR=/path/to/lib (plus LIBBSD_INCLUDE_DIR, LIBBSD_STATIC=1)\n\
-             help: or set LIBBSD_NO_PKG_CONFIG=1 to skip pkg-config entirely"
-        )
-    });
+    let lib = match cfg.probe(pkg) {
+        Ok(lib) => lib,
+        Err(e) => {
+            // pkg-config failed.  Warn and skip the link step rather than
+            // panic, so `cargo clippy` / `cargo check` in downstream crates
+            // succeed on machines without libbsd-dev.  A real binary build
+            // that actually references libbsd symbols will still fail at
+            // link time, and the warnings below tell the user how to fix it.
+            //
+            // cargo:warning is single-line, so collapse pkg-config's error
+            // text and emit each line of context as its own warning.
+            let e = e.to_string().replace('\n', " ");
+            println!("cargo:warning=libbsd-sys: {pkg} not found via pkg-config: {e}");
+            println!(
+                "cargo:warning=libbsd-sys: link step skipped; a real binary build \
+                 will fail at link time."
+            );
+            println!(
+                "cargo:warning=libbsd-sys: install libbsd-dev, set LIBBSD_LIB_DIR=/path/to/lib, \
+                 or set LIBBSD_NO_PKG_CONFIG=1 to silence this warning."
+            );
+            return;
+        }
+    };
 
     // Re-export paths so downstream build scripts can use them via
     // DEP_BSD_INCLUDE / DEP_BSD_LIBDIR.
