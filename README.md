@@ -14,7 +14,7 @@ I do not mean to be squatting on this highly valuable crate name with slop. I do
 Add the following to your `Cargo.toml`:
 ```toml
 [target.'cfg(not(target_os = "windows"))'.dependencies]
-libbsd-sys = "0.1"
+libbsd-sys = "0.2"
 ```
 
 ## Features
