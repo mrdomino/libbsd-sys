@@ -55,79 +55,51 @@ fn main() {
     // Env var wins over feature (openssl-sys semantics).
     let statik = env_static.unwrap_or(feat_static);
 
-    // Manual override path: bypass pkg-config entirely.
+    // Try pkg-config first, unless explicitly disabled or overridden by
+    // LIBBSD_LIB_DIR.  If it succeeds, we're done; if it fails, fall
+    // through to the manual link path below, so that `cargo check` and
+    // `cargo clippy` in downstream crates succeed without libbsd-dev
+    // installed.  A real binary build will then fail at link time with
+    // the linker's own "cannot find -lbsd" message.
+    if lib_dir.is_none() && !no_pkgcfg {
+        let pkg = if feat_overlay {
+            "libbsd-overlay"
+        } else {
+            "libbsd"
+        };
+        let mut cfg = pkg_config::Config::new();
+        cfg.atleast_version("0.11");
+        if statik {
+            cfg.statik(true);
+        }
+        if let Ok(lib) = cfg.probe(pkg) {
+            // Re-export paths so downstream build scripts can use them
+            // via DEP_BSD_INCLUDE / DEP_BSD_LIBDIR.
+            for p in &lib.include_paths {
+                println!("cargo:include={}", p.display());
+            }
+            for p in &lib.link_paths {
+                println!("cargo:libdir={}", p.display());
+            }
+            return;
+        }
+    }
+
+    // Manual link path: pkg-config was disabled, failed, or LIBBSD_LIB_DIR
+    // was set.  Emit a plain `rustc-link-lib=bsd`, plus a search path if
+    // LIBBSD_LIB_DIR was set.
     if let Some(dir) = &lib_dir {
         println!(
             "cargo:rustc-link-search=native={}",
             Path::new(dir).display()
         );
         println!("cargo:libdir={}", Path::new(dir).display());
-        let kind = if statik { "static" } else { "dylib" };
-        println!("cargo:rustc-link-lib={kind}=bsd");
-        if let Some(inc) = &inc_dir {
-            for p in std::env::split_paths(inc) {
-                println!("cargo:include={}", p.display());
-            }
+    }
+    let kind = if statik { "static" } else { "dylib" };
+    println!("cargo:rustc-link-lib={kind}=bsd");
+    if let Some(inc) = &inc_dir {
+        for p in std::env::split_paths(inc) {
+            println!("cargo:include={}", p.display());
         }
-        return;
-    }
-
-    // No pkg-config, no lib dir: skip linking entirely.  This lets
-    // `cargo clippy` (and similar check-only builds) succeed in downstream
-    // crates without libbsd-dev installed.  Any final binary that actually
-    // uses symbols from libbsd will need to arrange linkage itself
-    // (e.g. via RUSTFLAGS="-l bsd" or by setting LIBBSD_LIB_DIR).
-    if no_pkgcfg {
-        if let Some(inc) = &inc_dir {
-            for p in std::env::split_paths(inc) {
-                println!("cargo:include={}", p.display());
-            }
-        }
-        return;
-    }
-
-    // pkg-config path.
-    let pkg = if feat_overlay {
-        "libbsd-overlay"
-    } else {
-        "libbsd"
-    };
-    let mut cfg = pkg_config::Config::new();
-    cfg.atleast_version("0.11");
-    if statik {
-        cfg.statik(true);
-    }
-    let lib = match cfg.probe(pkg) {
-        Ok(lib) => lib,
-        Err(e) => {
-            // pkg-config failed.  Warn and skip the link step rather than
-            // panic, so `cargo clippy` / `cargo check` in downstream crates
-            // succeed on machines without libbsd-dev.  A real binary build
-            // that actually references libbsd symbols will still fail at
-            // link time, and the warnings below tell the user how to fix it.
-            //
-            // cargo:warning is single-line, so collapse pkg-config's error
-            // text and emit each line of context as its own warning.
-            let e = e.to_string().replace('\n', " ");
-            println!("cargo:warning=libbsd-sys: {pkg} not found via pkg-config: {e}");
-            println!(
-                "cargo:warning=libbsd-sys: link step skipped; a real binary build \
-                 will fail at link time."
-            );
-            println!(
-                "cargo:warning=libbsd-sys: install libbsd-dev, set LIBBSD_LIB_DIR=/path/to/lib, \
-                 or set LIBBSD_NO_PKG_CONFIG=1 to silence this warning."
-            );
-            return;
-        }
-    };
-
-    // Re-export paths so downstream build scripts can use them via
-    // DEP_BSD_INCLUDE / DEP_BSD_LIBDIR.
-    for p in &lib.include_paths {
-        println!("cargo:include={}", p.display());
-    }
-    for p in &lib.link_paths {
-        println!("cargo:libdir={}", p.display());
     }
 }
