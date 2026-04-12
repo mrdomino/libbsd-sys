@@ -56,16 +56,28 @@ fn main() {
     let statik = env_static.unwrap_or(feat_static);
 
     // Manual override path: bypass pkg-config entirely.
-    if lib_dir.is_some() || no_pkgcfg {
-        if let Some(dir) = &lib_dir {
-            println!(
-                "cargo:rustc-link-search=native={}",
-                Path::new(dir).display()
-            );
-            println!("cargo:libdir={}", Path::new(dir).display());
-        }
+    if let Some(dir) = &lib_dir {
+        println!(
+            "cargo:rustc-link-search=native={}",
+            Path::new(dir).display()
+        );
+        println!("cargo:libdir={}", Path::new(dir).display());
         let kind = if statik { "static" } else { "dylib" };
         println!("cargo:rustc-link-lib={kind}=bsd");
+        if let Some(inc) = &inc_dir {
+            for p in std::env::split_paths(inc) {
+                println!("cargo:include={}", p.display());
+            }
+        }
+        return;
+    }
+
+    // No pkg-config, no lib dir: skip linking entirely.  This lets
+    // `cargo clippy` (and similar check-only builds) succeed in downstream
+    // crates without libbsd-dev installed.  Any final binary that actually
+    // uses symbols from libbsd will need to arrange linkage itself
+    // (e.g. via RUSTFLAGS="-l bsd" or by setting LIBBSD_LIB_DIR).
+    if no_pkgcfg {
         if let Some(inc) = &inc_dir {
             for p in std::env::split_paths(inc) {
                 println!("cargo:include={}", p.display());

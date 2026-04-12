@@ -34,12 +34,15 @@
 //! The build script recognizes the following environment variables:
 //!
 //! - **`LIBBSD_NO_PKG_CONFIG`** — Set to any value to skip `pkg-config`
-//!   entirely. The build script will emit `cargo:rustc-link-lib=bsd` without
-//!   any search path. This is useful for running `cargo clippy` in CI without
-//!   `libbsd-dev` installed.
+//!   entirely. On its own (without `LIBBSD_LIB_DIR`), the build script emits
+//!   **no** `rustc-link-lib` directive, which lets `cargo clippy` and other
+//!   check-only builds succeed in downstream crates without `libbsd-dev`
+//!   installed. Producing a working final binary in this mode requires
+//!   arranging linkage yourself (e.g. via `RUSTFLAGS="-l bsd"`).
 //!
 //! - **`LIBBSD_LIB_DIR`** — Path to the directory containing the libbsd
-//!   library. Implies `LIBBSD_NO_PKG_CONFIG`.
+//!   library. Implies `LIBBSD_NO_PKG_CONFIG`; the build script emits a link
+//!   directive pointing at this directory.
 //!
 //! - **`LIBBSD_INCLUDE_DIR`** — Path(s) to libbsd headers (colon-separated
 //!   on Unix). Only used in the manual override path; the include paths are
