@@ -26,19 +26,31 @@ On non-Linux, these features are no-ops.
 
 ## Environment variables
 
+If `pkg-config` can't find libbsd, the build script emits a
+`cargo:warning` and skips the link step instead of aborting the build.
+That way `cargo clippy` and `cargo check` in downstream crates work
+without `libbsd-dev` installed; only the actual link step of a binary
+that references libbsd symbols will fail, and the warning tells the user
+what to install.
+
 The build script recognizes the following environment variables:
 
-* `LIBBSD_NO_PKG_CONFIG` — skip `pkg-config` entirely.  The build script will
-  emit `cargo:rustc-link-lib=bsd` without any search path.  Useful for running
-  `cargo clippy` in CI without `libbsd-dev` installed.
+* `LIBBSD_NO_PKG_CONFIG` — skip `pkg-config` probing, as in the
+  [pkg-config-rs convention][pkgcfg].  On its own, the build script emits
+  no `rustc-link-lib` directive at all.  To produce a working binary in
+  this mode, either set `LIBBSD_LIB_DIR` or arrange linkage yourself
+  (e.g. via `RUSTFLAGS="-l bsd"`).
 * `LIBBSD_LIB_DIR` — path to the directory containing the libbsd library.
-  Implies `LIBBSD_NO_PKG_CONFIG`.
+  Skips `pkg-config` and emits a search path and `rustc-link-lib`
+  directive pointing at this directory.
 * `LIBBSD_INCLUDE_DIR` — path(s) to libbsd headers (colon-separated on Unix).
   Only used in the manual override path.
 * `LIBBSD_STATIC` — `1`/`true`/`yes` to force static linking, `0`/`false`/`no`
   to force dynamic.  Overrides the `static` crate feature.
 * `DOCS_RS` — when set (as it is automatically on docs.rs), the build script
   skips all linking.
+
+[pkgcfg]: https://docs.rs/pkg-config "pkg-config-rs — FOO_NO_PKG_CONFIG"
 
 ## Metadata for dependent crates
 
@@ -48,7 +60,10 @@ This crate sets `links = "bsd"`, so dependent build scripts can read:
 * `DEP_BSD_LIBDIR` — library directory (one per line).
 
 ## Requirements
-On Linux, [libbsd][2] is required. Usually the package will be named something like `libbsd-dev` or `libbsd-devel`. If you do not use the `static` feature, then your users will also have to have the non-devel `libbsd` package installed.
+On Linux, [libbsd][2] is required to produce a working binary. Usually the package will be named something like `libbsd-dev` or `libbsd-devel`. If you do not use the `static` feature, then your users will also have to have the non-devel `libbsd` package installed.
+
+`cargo clippy` and `cargo check` work without libbsd installed — the
+build script warns and skips the link step.
 
 We depend on at least libbsd 0.11.
 

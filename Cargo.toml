@@ -1,6 +1,6 @@
 [package]
 name = "libbsd-sys"
-version = "0.2.0"
+version = "0.2.1"
 categories = ["external-ffi-bindings", "no-std"]
 documentation = "https://docs.rs/libbsd-sys"
 edition = "2024"
