@@ -45,6 +45,7 @@ The build script recognizes the following environment variables:
 This crate sets `links = "bsd"`, so dependent build scripts can read:
 
 * `DEP_BSD_INCLUDE` — include paths for libbsd headers (one per line).
+* `DEP_BSD_LIBDIR` — library directory (one per line).
 
 ## Requirements
 On Linux, [libbsd][2] is required. Usually the package will be named something like `libbsd-dev` or `libbsd-devel`. If you do not use the `static` feature, then your users will also have to have the non-devel `libbsd` package installed.

@@ -61,6 +61,8 @@
 //!
 //! - **`DEP_BSD_INCLUDE`** — Include paths for libbsd headers (one path per
 //!   value; there may be multiple `include=` lines).
+//!
+//! - **`DEP_BSD_LIBDIR`** — Library directory (one path per value).
 
 #![no_std]
 #![allow(non_camel_case_types)]

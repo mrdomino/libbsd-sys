@@ -62,6 +62,7 @@ fn main() {
                 "cargo:rustc-link-search=native={}",
                 Path::new(dir).display()
             );
+            println!("cargo:libdir={}", Path::new(dir).display());
         }
         let kind = if statik { "static" } else { "dylib" };
         println!("cargo:rustc-link-lib={kind}=bsd");
@@ -93,9 +94,12 @@ fn main() {
         )
     });
 
-    // Re-export include paths so downstream build scripts can use them via
-    // DEP_BSD_INCLUDE (one path per line).
+    // Re-export paths so downstream build scripts can use them via
+    // DEP_BSD_INCLUDE / DEP_BSD_LIBDIR.
     for p in &lib.include_paths {
         println!("cargo:include={}", p.display());
+    }
+    for p in &lib.link_paths {
+        println!("cargo:libdir={}", p.display());
     }
 }
