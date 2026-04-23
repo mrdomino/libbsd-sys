@@ -90,3 +90,6 @@ jobs:
           components: clippy, rustfmt
       - run: cargo fmt -- --check
       - run: cargo clippy -- -D warnings
+
+permissions:
+  contents: read
