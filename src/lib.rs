@@ -246,6 +246,7 @@ mod tests {
     fn link_stdio() {
         let _: unsafe extern "C" fn(*const c_char, *const c_char) -> *const c_char = fmtcheck;
         let _: unsafe extern "C" fn(*mut FILE, *mut size_t) -> *mut c_char = fgetln;
+        #[allow(clippy::type_complexity)]
         let _: unsafe extern "C" fn(
             *const c_void,
             Option<unsafe extern "C" fn(*mut c_void, *mut c_char, c_int) -> c_int>,
