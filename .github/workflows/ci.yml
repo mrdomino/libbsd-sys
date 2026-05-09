@@ -33,6 +33,7 @@ jobs:
           persist-credentials: false
       - name: Install libbsd-dev
         run: sudo sh -c 'apt-get update && apt-get install -y libbsd-dev'
+      - run: rustup toolchain install nightly --profile minimal --no-self-update && rustup default nightly
       - run: cargo build --verbose ${{ matrix.flags }} # zizmor: ignore[template-injection] matrix.flags is a literal list defined inline
       - run: cargo test --verbose ${{ matrix.flags }} # zizmor: ignore[template-injection] matrix.flags is a literal list defined inline
 
@@ -42,6 +43,7 @@ jobs:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           persist-credentials: false
+      - run: rustup toolchain install nightly --profile minimal --no-self-update && rustup default nightly
       - run: cargo build --verbose
       - run: cargo test --verbose
 
@@ -101,6 +103,7 @@ jobs:
           persist-credentials: false
       - name: Install libbsd-dev
         run: sudo apt-get update && sudo apt-get install -y libbsd-dev
+      - run: rustup toolchain install nightly --profile minimal --component clippy --component rustfmt --no-self-update && rustup default nightly
       - run: cargo fmt -- --check
       - run: cargo clippy -- -D warnings
 
