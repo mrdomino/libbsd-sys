@@ -1,0 +1,14 @@
+rules:
+  # Job IDs (msrv, linux, macos, etc.) are descriptive; an extra `name:`
+  # would just duplicate them in the GitHub UI.
+  anonymous-definition:
+    ignore:
+      - ci.yml
+      - release.yaml
+  # dtolnay/rust-toolchain is the canonical way to install Rust toolchains
+  # in CI; switching to a hand-rolled rustup script for every job would be
+  # a regression in clarity, not security.
+  superfluous-actions:
+    ignore:
+      - ci.yml
+      - release.yaml
