@@ -1,21 +1,24 @@
 name: Release
 
-on:
+on: # zizmor: ignore[concurrency-limits] each tag is a unique ref; we never want to cancel an in-flight publish
   push:
     tags: ["v*"]
+
+permissions: {}
 
 jobs:
   publish:
     runs-on: ubuntu-latest
     environment: crates-io
     permissions:
-      id-token: write
-      contents: read
+      id-token: write # for crates.io Trusted Publishing via rust-lang/crates-io-auth-action (PR #8)
+      contents: read # for actions/checkout
     steps:
-      - uses: actions/checkout@v6
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
       - run: sudo sh -c 'apt-get update && apt-get install -y libbsd-dev'
-      - uses: rust-lang/crates-io-auth-action@v1
+      - uses: rust-lang/crates-io-auth-action@b7e9a28eded4986ec6b1fa40eeee8f8f165559ec # v1.0.3
         id: auth
       - name: Publish to crates.io
         run: cargo publish --locked
