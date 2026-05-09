@@ -5,10 +5,3 @@ rules:
     ignore:
       - ci.yml
       - release.yaml
-  # dtolnay/rust-toolchain is the canonical way to install Rust toolchains
-  # in CI; switching to a hand-rolled rustup script for every job would be
-  # a regression in clarity, not security.
-  superfluous-actions:
-    ignore:
-      - ci.yml
-      - release.yaml

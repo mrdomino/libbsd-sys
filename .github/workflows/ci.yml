@@ -18,9 +18,7 @@ jobs:
           persist-credentials: false
       - name: Install libbsd-dev
         run: sudo sh -c 'apt-get update && apt-get install -y libbsd-dev'
-      - uses: dtolnay/rust-toolchain@e97e2d8cc328f1b50210efc529dca0028893a2d9 # v1
-        with:
-          toolchain: "1.85"
+      - run: rustup toolchain install 1.85 --profile minimal --no-self-update && rustup default 1.85
       - run: cargo build --verbose
       - run: cargo test --verbose
 
@@ -35,9 +33,6 @@ jobs:
           persist-credentials: false
       - name: Install libbsd-dev
         run: sudo sh -c 'apt-get update && apt-get install -y libbsd-dev'
-      - uses: dtolnay/rust-toolchain@e97e2d8cc328f1b50210efc529dca0028893a2d9 # v1
-        with:
-          toolchain: stable
       - run: cargo build --verbose ${{ matrix.flags }} # zizmor: ignore[template-injection] matrix.flags is a literal list defined inline
       - run: cargo test --verbose ${{ matrix.flags }} # zizmor: ignore[template-injection] matrix.flags is a literal list defined inline
 
@@ -47,9 +42,6 @@ jobs:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           persist-credentials: false
-      - uses: dtolnay/rust-toolchain@e97e2d8cc328f1b50210efc529dca0028893a2d9 # v1
-        with:
-          toolchain: stable
       - run: cargo build --verbose
       - run: cargo test --verbose
 
@@ -109,10 +101,6 @@ jobs:
           persist-credentials: false
       - name: Install libbsd-dev
         run: sudo apt-get update && sudo apt-get install -y libbsd-dev
-      - uses: dtolnay/rust-toolchain@e97e2d8cc328f1b50210efc529dca0028893a2d9 # v1
-        with:
-          toolchain: stable
-          components: clippy, rustfmt
       - run: cargo fmt -- --check
       - run: cargo clippy -- -D warnings
 
