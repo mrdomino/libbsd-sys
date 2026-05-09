@@ -9,10 +9,12 @@ jobs:
   msrv:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
       - name: Install libbsd-dev
         run: sudo sh -c 'apt-get update && apt-get install -y libbsd-dev'
-      - uses: dtolnay/rust-toolchain@1.85
+      - uses: dtolnay/rust-toolchain@c56a35af9328d0bc581dc86c05e58f97f7c38a0e # 1.85
       - run: cargo build --verbose
       - run: cargo test --verbose
 
@@ -22,27 +24,33 @@ jobs:
       matrix:
         flags: ["", "--all-features"]
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
       - name: Install libbsd-dev
         run: sudo sh -c 'apt-get update && apt-get install -y libbsd-dev'
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: dtolnay/rust-toolchain@29eef336d9b2848a0b548edc03f92a220660cdb8 # stable
       - run: cargo build --verbose ${{ matrix.flags }}
       - run: cargo test --verbose ${{ matrix.flags }}
 
   macos:
     runs-on: macos-latest
     steps:
-      - uses: actions/checkout@v6
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@29eef336d9b2848a0b548edc03f92a220660cdb8 # stable
       - run: cargo build --verbose
       - run: cargo test --verbose
 
   freebsd:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
       - name: Build and test on FreeBSD
-        uses: vmactions/freebsd-vm@v1
+        uses: vmactions/freebsd-vm@d1e65811565151536c0c894fff74f06351ed26e6 # v1.4.5
         with:
           usesh: true
           prepare: |
@@ -54,9 +62,11 @@ jobs:
   openbsd:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
       - name: Build and test on OpenBSD
-        uses: vmactions/openbsd-vm@v1
+        uses: vmactions/openbsd-vm@d7d892b7b9ba97ed2747b0fc201be65037d64c3e # v1.4.0
         with:
           usesh: true
           prepare: |
@@ -68,9 +78,11 @@ jobs:
   netbsd:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
       - name: Build and test on NetBSD
-        uses: vmactions/netbsd-vm@v1
+        uses: vmactions/netbsd-vm@eb3ba840926911ccf17dc9de235335cb27a02ba0 # v1.3.8
         with:
           usesh: true
           prepare: |
@@ -82,10 +94,12 @@ jobs:
   lint:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
       - name: Install libbsd-dev
         run: sudo apt-get update && sudo apt-get install -y libbsd-dev
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: dtolnay/rust-toolchain@29eef336d9b2848a0b548edc03f92a220660cdb8 # stable
         with:
           components: clippy, rustfmt
       - run: cargo fmt -- --check
