@@ -21,12 +21,23 @@
 //!
 //! # Conditional compilation
 //!
-//! Functions that only exist in libbsd (not on any BSD natively) are gated
-//! behind `#[cfg(target_os = "linux")]`. Functions available on the BSDs
-//! but not macOS are gated behind `#[cfg(not(target_os = "macos"))]`.
-//! OpenBSD ships an older, smaller `vis(3)`/`stringlist(3)` surface, so
-//! the NetBSD-family extensions (`nvis`, `svis`, `strsvis`, `strnvisx`,
-//! `sl_*`, `nlist`, …) are gated behind `#[cfg(not(target_os = "openbsd"))]`.
+//! Each declaration is gated to the platforms whose system library
+//! actually exports the symbol.  In broad strokes:
+//!
+//! * Functions that exist only in libbsd (`bsd_getopt`, `setproctitle_init`,
+//!   `arc4random_stir`, `dehumanize_number`, `time*_to_*`) are
+//!   `#[cfg(target_os = "linux")]`.
+//! * `recallocarray`/`freezero` originated in OpenBSD; libbsd ships them
+//!   on Linux, but FreeBSD/NetBSD/macOS don't have them.
+//! * macOS lacks `closefrom`, `explicit_bzero`, `reallocarray`,
+//!   `setproctitle`, `gid_from_group`/`uid_from_user`, and (on Mach-O)
+//!   `nlist(3)`.
+//! * NetBSD lacks `explicit_bzero`, `reallocf`, `readpassphrase`,
+//!   `expand_number`, the FreeBSD-style `pidfile_*` family, and most
+//!   FreeBSD extensions.
+//! * OpenBSD lacks the entire NetBSD-family extended `vis(3)` surface
+//!   (`nvis`, `svis`, `strsvis`, `strnvisx`, …), `<bsd/stringlist.h>`,
+//!   `nlist(3)`, `strnstr`, `reallocf`, `fmtcheck`, and `fgetwln`.
 //!
 //! The `strnvis` and `strnunvis` functions have two parameter-order
 //! conventions, neither of which lines up with what most readers expect:
@@ -193,11 +204,13 @@ mod tests {
             strlcat,
             unsafe extern "C" fn(*mut c_char, *const c_char, size_t) -> size_t
         );
+        link!(strmode, unsafe extern "C" fn(mode_t, *mut c_char));
+        #[cfg(not(target_os = "openbsd"))]
         link!(
             strnstr,
             unsafe extern "C" fn(*const c_char, *const c_char, size_t) -> *mut c_char
         );
-        link!(strmode, unsafe extern "C" fn(mode_t, *mut c_char));
+        #[cfg(any(target_os = "linux", target_os = "freebsd", target_os = "openbsd"))]
         link!(explicit_bzero, unsafe extern "C" fn(*mut c_void, size_t));
     }
 
@@ -235,10 +248,12 @@ mod tests {
             sradixsort,
             unsafe extern "C" fn(*mut *const c_uchar, c_int, *const c_uchar, c_uint) -> c_int
         );
+        #[cfg(not(any(target_os = "netbsd", target_os = "openbsd")))]
         link!(
             reallocf,
             unsafe extern "C" fn(*mut c_void, size_t) -> *mut c_void
         );
+        #[cfg(not(target_os = "macos"))]
         link!(
             reallocarray,
             unsafe extern "C" fn(*mut c_void, size_t, size_t) -> *mut c_void
@@ -253,9 +268,11 @@ mod tests {
         );
     }
 
+    // recallocarray/freezero originate in OpenBSD; libbsd ships them on
+    // Linux, but FreeBSD, NetBSD, and macOS don't have them.
     #[test]
-    #[cfg(not(target_os = "macos"))]
-    fn link_stdlib_not_macos() {
+    #[cfg(any(target_os = "linux", target_os = "openbsd"))]
+    fn link_stdlib_recallocarray_freezero() {
         link!(
             recallocarray,
             unsafe extern "C" fn(*mut c_void, size_t, size_t, size_t) -> *mut c_void
@@ -286,6 +303,7 @@ mod tests {
             unsafe extern "C" fn(*const c_void, mode_t) -> mode_t
         );
         link!(setmode, unsafe extern "C" fn(*const c_char) -> *mut c_void);
+        #[cfg(not(target_os = "macos"))]
         link!(closefrom, unsafe extern "C" fn(c_int));
         link!(
             getpeereid,
@@ -316,6 +334,7 @@ mod tests {
     // <bsd/stdio.h>
     #[test]
     fn link_stdio() {
+        #[cfg(not(target_os = "openbsd"))]
         link!(
             fmtcheck,
             unsafe extern "C" fn(*const c_char, *const c_char) -> *const c_char
@@ -340,8 +359,9 @@ mod tests {
         link!(fpurge, unsafe extern "C" fn(*mut FILE) -> c_int);
     }
 
-    // <bsd/readpassphrase.h>
+    // <bsd/readpassphrase.h> — missing on NetBSD.
     #[test]
+    #[cfg(not(target_os = "netbsd"))]
     fn link_readpassphrase() {
         link!(
             readpassphrase,
@@ -505,6 +525,8 @@ mod tests {
             humanize_number,
             unsafe extern "C" fn(*mut c_char, size_t, i64, *const c_char, c_int, c_int) -> c_int
         );
+        // expand_number is missing on NetBSD.
+        #[cfg(any(target_os = "linux", target_os = "freebsd"))]
         link!(
             expand_number,
             unsafe extern "C" fn(*const c_char, *mut u64) -> c_int
@@ -582,7 +604,7 @@ mod tests {
     }
 
     #[test]
-    #[cfg(any(target_os = "netbsd", target_os = "freebsd"))]
+    #[cfg(target_os = "netbsd")]
     fn link_sl_delete() {
         link!(
             sl_delete,
@@ -640,6 +662,8 @@ mod tests {
     // <bsd/grp.h>
     #[test]
     fn link_grp() {
+        // gid_from_group is missing on macOS.
+        #[cfg(not(target_os = "macos"))]
         link!(
             gid_from_group,
             unsafe extern "C" fn(*const c_char, *mut gid_t) -> c_int
@@ -653,6 +677,8 @@ mod tests {
     // <bsd/pwd.h>
     #[test]
     fn link_pwd() {
+        // uid_from_user is missing on macOS.
+        #[cfg(not(target_os = "macos"))]
         link!(
             uid_from_user,
             unsafe extern "C" fn(*const c_char, *mut uid_t) -> c_int

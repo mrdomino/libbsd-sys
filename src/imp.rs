@@ -10,8 +10,12 @@ pub use libc::{FILE, gid_t, mode_t, off_t, pid_t, size_t, ssize_t, uid_t};
 unsafe extern "C" {
     pub fn strlcpy(dst: *mut c_char, src: *const c_char, siz: size_t) -> size_t;
     pub fn strlcat(dst: *mut c_char, src: *const c_char, siz: size_t) -> size_t;
-    pub fn strnstr(s: *const c_char, find: *const c_char, slen: size_t) -> *mut c_char;
     pub fn strmode(mode: mode_t, str_: *mut c_char);
+    // OpenBSD has no strnstr (suggests strstr instead).
+    #[cfg(not(target_os = "openbsd"))]
+    pub fn strnstr(s: *const c_char, find: *const c_char, slen: size_t) -> *mut c_char;
+    // explicit_bzero is absent on macOS and NetBSD.
+    #[cfg(any(target_os = "linux", target_os = "freebsd", target_os = "openbsd"))]
     pub fn explicit_bzero(buf: *mut c_void, len: size_t);
 }
 
@@ -59,16 +63,23 @@ unsafe extern "C" {
         endbyte: c_uint,
     ) -> c_int;
 
+    // reallocf is missing on NetBSD and OpenBSD.
+    #[cfg(not(any(target_os = "netbsd", target_os = "openbsd")))]
     pub fn reallocf(ptr: *mut c_void, size: size_t) -> *mut c_void;
-    pub fn reallocarray(ptr: *mut c_void, nmemb: size_t, size: size_t) -> *mut c_void;
+    // reallocarray was added to macOS at an unknown SDK revision after the
+    // 11.0 deployment target Rust uses by default; treat it as absent.
     #[cfg(not(target_os = "macos"))]
+    pub fn reallocarray(ptr: *mut c_void, nmemb: size_t, size: size_t) -> *mut c_void;
+    // recallocarray and freezero originate in OpenBSD; libbsd ships them
+    // on Linux, but FreeBSD, NetBSD, and macOS don't have them.
+    #[cfg(any(target_os = "linux", target_os = "openbsd"))]
     pub fn recallocarray(
         ptr: *mut c_void,
         oldnmemb: size_t,
         nmemb: size_t,
         size: size_t,
     ) -> *mut c_void;
-    #[cfg(not(target_os = "macos"))]
+    #[cfg(any(target_os = "linux", target_os = "openbsd"))]
     pub fn freezero(ptr: *mut c_void, size: size_t);
 
     pub fn strtonum(
@@ -94,6 +105,9 @@ unsafe extern "C" {
     pub fn getmode(set: *const c_void, mode: mode_t) -> mode_t;
     pub fn setmode(mode_str: *const c_char) -> *mut c_void;
 
+    // closefrom is absent on macOS (added only in macOS 13; gate it out
+    // unconditionally rather than wire deployment-target detection).
+    #[cfg(not(target_os = "macos"))]
     pub fn closefrom(lowfd: c_int);
 
     #[cfg(target_os = "linux")]
@@ -109,6 +123,8 @@ unsafe extern "C" {
 // ---------------------------------------------------------------------------
 
 unsafe extern "C" {
+    // fmtcheck is absent on OpenBSD.
+    #[cfg(not(target_os = "openbsd"))]
     pub fn fmtcheck(f1: *const c_char, f2: *const c_char) -> *const c_char;
 
     pub fn fgetln(fp: *mut FILE, lenp: *mut size_t) -> *mut c_char;
@@ -136,6 +152,8 @@ pub const RPP_FORCEUPPER: c_int = 0x08;
 pub const RPP_SEVENBIT: c_int = 0x10;
 pub const RPP_STDIN: c_int = 0x20;
 
+// readpassphrase is missing on NetBSD.
+#[cfg(not(target_os = "netbsd"))]
 unsafe extern "C" {
     pub fn readpassphrase(
         prompt: *const c_char,
@@ -366,8 +384,12 @@ unsafe extern "C" {
         scale: c_int,
         flags: c_int,
     ) -> c_int;
-    pub fn expand_number(buf: *const c_char, num: *mut u64) -> c_int;
+}
 
+// expand_number is missing on NetBSD.
+#[cfg(any(target_os = "linux", target_os = "freebsd"))]
+unsafe extern "C" {
+    pub fn expand_number(buf: *const c_char, num: *mut u64) -> c_int;
 }
 
 // NetBSD's pidfile(3) is a different one-function API; the FreeBSD-style
@@ -460,10 +482,10 @@ unsafe extern "C" {
     pub fn sl_find(sl: *mut StringList, name: *const c_char) -> *mut c_char;
 }
 
-// sl_delete is declared in libbsd's <stringlist.h> but is NOT exported
-// from libbsd's shared library, so binding it on Linux fails at link
-// time.  NetBSD/FreeBSD ship a real implementation.
-#[cfg(any(target_os = "netbsd", target_os = "freebsd"))]
+// sl_delete is declared in libbsd's <stringlist.h> but isn't exported from
+// libbsd's shared library, and FreeBSD's libc doesn't ship it either.
+// macOS hasn't been verified; binding only NetBSD until proven elsewhere.
+#[cfg(target_os = "netbsd")]
 unsafe extern "C" {
     pub fn sl_delete(sl: *mut StringList, name: *const c_char, freel: c_int) -> c_int;
 }
@@ -521,6 +543,8 @@ unsafe extern "C" {
 // ---------------------------------------------------------------------------
 
 unsafe extern "C" {
+    // gid_from_group is missing on macOS.
+    #[cfg(not(target_os = "macos"))]
     pub fn gid_from_group(name: *const c_char, gid: *mut gid_t) -> c_int;
     pub fn group_from_gid(gid: gid_t, nosuchgroup: c_int) -> *const c_char;
 }
@@ -530,6 +554,8 @@ unsafe extern "C" {
 // ---------------------------------------------------------------------------
 
 unsafe extern "C" {
+    // uid_from_user is missing on macOS.
+    #[cfg(not(target_os = "macos"))]
     pub fn uid_from_user(name: *const c_char, uid: *mut uid_t) -> c_int;
     pub fn user_from_uid(uid: uid_t, nosuchuser: c_int) -> *const c_char;
 }
