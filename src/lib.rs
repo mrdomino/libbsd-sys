@@ -22,12 +22,21 @@
 //! # Conditional compilation
 //!
 //! Functions that only exist in libbsd (not on any BSD natively) are gated
-//! behind `#[cfg(target_os = "linux")]`. Functions available on the BSDs but
-//! not macOS are gated behind `#[cfg(not(target_os = "macos"))]`.
+//! behind `#[cfg(target_os = "linux")]`. Functions available on the BSDs
+//! but not macOS are gated behind `#[cfg(not(target_os = "macos"))]`.
+//! OpenBSD ships an older, smaller `vis(3)`/`stringlist(3)` surface, so
+//! the NetBSD-family extensions (`nvis`, `svis`, `strsvis`, `strnvisx`,
+//! `sl_*`, `nlist`, …) are gated behind `#[cfg(not(target_os = "openbsd"))]`.
 //!
-//! The `strnvis` and `strnunvis` functions have different parameter orders
-//! depending on whether the platform follows the NetBSD convention (macOS,
-//! NetBSD, OpenBSD) or the FreeBSD convention (FreeBSD, Linux/libbsd).
+//! The `strnvis` and `strnunvis` functions have two parameter-order
+//! conventions, neither of which lines up with what most readers expect:
+//!
+//! * OpenBSD-order `(dst, src, dlen[, flag])`: used by OpenBSD's native
+//!   libc *and* by libbsd on Linux — libbsd's header `#define`s C
+//!   callers to `strnvis_netbsd`, but the unversioned export keeps the
+//!   OpenBSD signature, and that is what a Rust `extern` block binds to.
+//! * NetBSD-order `(dst, dlen, src[, flag])`: used by NetBSD, FreeBSD
+//!   (imported from NetBSD's libc-vis), and macOS.
 //!
 //! # Environment variables
 //!
@@ -59,10 +68,11 @@
 //! build scripts can read the following metadata via `DEP_BSD_*` environment
 //! variables:
 //!
-//! - **`DEP_BSD_INCLUDE`** — Include paths for libbsd headers (one path per
-//!   value; there may be multiple `include=` lines).
+//! - **`DEP_BSD_INCLUDE`** — Include paths for libbsd headers, joined with
+//!   the platform's `PATH` separator (`:` on Unix). Parse with
+//!   [`std::env::split_paths`].
 //!
-//! - **`DEP_BSD_LIBDIR`** — Library directory (one path per value).
+//! - **`DEP_BSD_LIBDIR`** — Library directories, joined the same way.
 
 #![no_std]
 #![allow(non_camel_case_types)]
@@ -107,7 +117,7 @@ mod tests {
                 buf.as_mut_ptr().cast(),
                 buf.len() as size_t,
                 1024 * 1024,
-                b"\0".as_ptr().cast(),
+                c"".as_ptr(),
                 HN_AUTOSCALE,
                 HN_DECIMAL | HN_NOSPACE | HN_B,
             );
@@ -154,221 +164,366 @@ mod tests {
 
     // -------------------------------------------------------------------
     // Link smoke tests: verify every extern symbol resolves at link time.
-    // Each test coerces a function item to its fn-pointer type, forcing
-    // the linker to resolve the symbol.  Variadic and divergent functions
-    // use alternative strategies noted inline.
+    //
+    // `link!` coerces a function item to its fn-pointer type and routes
+    // the pointer through `core::hint::black_box`, which forces the
+    // compiler to emit a relocation against the symbol.  A bare typed
+    // `let _: T = sym;` binding is silently optimized away and would
+    // not actually exercise the linker.  Variadic and divergent
+    // functions use alternative strategies noted inline.
     // -------------------------------------------------------------------
 
     use core::ffi::{c_char, c_int, c_long, c_uchar, c_uint, c_void};
 
+    macro_rules! link {
+        ($sym:expr, $ty:ty) => {{
+            let f: $ty = $sym;
+            core::hint::black_box(f);
+        }};
+    }
+
     // <bsd/string.h>
     #[test]
     fn link_string() {
-        let _: unsafe extern "C" fn(*mut c_char, *const c_char, size_t) -> size_t = strlcpy;
-        let _: unsafe extern "C" fn(*mut c_char, *const c_char, size_t) -> size_t = strlcat;
-        let _: unsafe extern "C" fn(*const c_char, *const c_char, size_t) -> *mut c_char = strnstr;
-        let _: unsafe extern "C" fn(mode_t, *mut c_char) = strmode;
-        let _: unsafe extern "C" fn(*mut c_void, size_t) = explicit_bzero;
+        link!(
+            strlcpy,
+            unsafe extern "C" fn(*mut c_char, *const c_char, size_t) -> size_t
+        );
+        link!(
+            strlcat,
+            unsafe extern "C" fn(*mut c_char, *const c_char, size_t) -> size_t
+        );
+        link!(
+            strnstr,
+            unsafe extern "C" fn(*const c_char, *const c_char, size_t) -> *mut c_char
+        );
+        link!(strmode, unsafe extern "C" fn(mode_t, *mut c_char));
+        link!(explicit_bzero, unsafe extern "C" fn(*mut c_void, size_t));
     }
 
     // <bsd/stdlib.h>
     #[test]
     fn link_stdlib() {
-        let _: unsafe extern "C" fn() -> u32 = arc4random;
-        let _: unsafe extern "C" fn(*mut c_void, size_t) = arc4random_buf;
-        let _: unsafe extern "C" fn(u32) -> u32 = arc4random_uniform;
-        let _: unsafe extern "C" fn() -> *const c_char = getprogname;
-        let _: unsafe extern "C" fn(*const c_char) = setprogname;
-        let _: unsafe extern "C" fn(
-            *mut c_void,
-            size_t,
-            size_t,
-            Option<unsafe extern "C" fn(*const c_void, *const c_void) -> c_int>,
-        ) -> c_int = heapsort;
-        let _: unsafe extern "C" fn(
-            *mut c_void,
-            size_t,
-            size_t,
-            Option<unsafe extern "C" fn(*const c_void, *const c_void) -> c_int>,
-        ) -> c_int = mergesort;
-        let _: unsafe extern "C" fn(*mut *const c_uchar, c_int, *const c_uchar, c_uint) -> c_int =
-            radixsort;
-        let _: unsafe extern "C" fn(*mut *const c_uchar, c_int, *const c_uchar, c_uint) -> c_int =
-            sradixsort;
-        let _: unsafe extern "C" fn(*mut c_void, size_t) -> *mut c_void = reallocf;
-        let _: unsafe extern "C" fn(*mut c_void, size_t, size_t) -> *mut c_void = reallocarray;
-        let _: unsafe extern "C" fn(*const c_char, i64, i64, *mut *const c_char) -> i64 = strtonum;
-        let _: unsafe extern "C" fn(*mut c_int, *mut c_long) -> *mut c_char = getbsize;
+        link!(arc4random, unsafe extern "C" fn() -> u32);
+        link!(arc4random_buf, unsafe extern "C" fn(*mut c_void, size_t));
+        link!(arc4random_uniform, unsafe extern "C" fn(u32) -> u32);
+        link!(getprogname, unsafe extern "C" fn() -> *const c_char);
+        link!(setprogname, unsafe extern "C" fn(*const c_char));
+        link!(
+            heapsort,
+            unsafe extern "C" fn(
+                *mut c_void,
+                size_t,
+                size_t,
+                Option<unsafe extern "C" fn(*const c_void, *const c_void) -> c_int>,
+            ) -> c_int
+        );
+        link!(
+            mergesort,
+            unsafe extern "C" fn(
+                *mut c_void,
+                size_t,
+                size_t,
+                Option<unsafe extern "C" fn(*const c_void, *const c_void) -> c_int>,
+            ) -> c_int
+        );
+        link!(
+            radixsort,
+            unsafe extern "C" fn(*mut *const c_uchar, c_int, *const c_uchar, c_uint) -> c_int
+        );
+        link!(
+            sradixsort,
+            unsafe extern "C" fn(*mut *const c_uchar, c_int, *const c_uchar, c_uint) -> c_int
+        );
+        link!(
+            reallocf,
+            unsafe extern "C" fn(*mut c_void, size_t) -> *mut c_void
+        );
+        link!(
+            reallocarray,
+            unsafe extern "C" fn(*mut c_void, size_t, size_t) -> *mut c_void
+        );
+        link!(
+            strtonum,
+            unsafe extern "C" fn(*const c_char, i64, i64, *mut *const c_char) -> i64
+        );
+        link!(
+            getbsize,
+            unsafe extern "C" fn(*mut c_int, *mut c_long) -> *mut c_char
+        );
     }
 
     #[test]
     #[cfg(not(target_os = "macos"))]
     fn link_stdlib_not_macos() {
-        let _: unsafe extern "C" fn(*mut c_void, size_t, size_t, size_t) -> *mut c_void =
-            recallocarray;
-        let _: unsafe extern "C" fn(*mut c_void, size_t) = freezero;
+        link!(
+            recallocarray,
+            unsafe extern "C" fn(*mut c_void, size_t, size_t, size_t) -> *mut c_void
+        );
+        link!(freezero, unsafe extern "C" fn(*mut c_void, size_t));
     }
 
     #[test]
     #[cfg(target_os = "linux")]
     fn link_stdlib_linux() {
-        let _: unsafe extern "C" fn() = arc4random_stir;
-        let _: unsafe extern "C" fn(*mut c_uchar, c_int) = arc4random_addrandom;
-        let _: unsafe extern "C" fn(*const c_char, *mut i64) -> c_int = dehumanize_number;
+        link!(arc4random_stir, unsafe extern "C" fn());
+        link!(
+            arc4random_addrandom,
+            unsafe extern "C" fn(*mut c_uchar, c_int)
+        );
+        link!(
+            dehumanize_number,
+            unsafe extern "C" fn(*const c_char, *mut i64) -> c_int
+        );
     }
 
     // <bsd/unistd.h>
     #[test]
     fn link_unistd() {
-        let _ = &raw const optreset;
-        let _: unsafe extern "C" fn(*const c_void, mode_t) -> mode_t = getmode;
-        let _: unsafe extern "C" fn(*const c_char) -> *mut c_void = setmode;
-        let _: unsafe extern "C" fn(c_int) = closefrom;
-        let _: unsafe extern "C" fn(c_int, *mut uid_t, *mut gid_t) -> c_int = getpeereid;
+        core::hint::black_box(&raw const optreset);
+        link!(
+            getmode,
+            unsafe extern "C" fn(*const c_void, mode_t) -> mode_t
+        );
+        link!(setmode, unsafe extern "C" fn(*const c_char) -> *mut c_void);
+        link!(closefrom, unsafe extern "C" fn(c_int));
+        link!(
+            getpeereid,
+            unsafe extern "C" fn(c_int, *mut uid_t, *mut gid_t) -> c_int
+        );
     }
 
     #[test]
     #[cfg(target_os = "linux")]
     fn link_unistd_linux() {
-        let _: unsafe extern "C" fn(c_int, *const *mut c_char, *const c_char) -> c_int = bsd_getopt;
-        let _: unsafe extern "C" fn(c_int, *mut *mut c_char, *mut *mut c_char) = setproctitle_init;
+        link!(
+            bsd_getopt,
+            unsafe extern "C" fn(c_int, *const *mut c_char, *const c_char) -> c_int
+        );
+        link!(
+            setproctitle_init,
+            unsafe extern "C" fn(c_int, *mut *mut c_char, *mut *mut c_char)
+        );
     }
 
     #[test]
     #[cfg(not(target_os = "macos"))]
     fn link_setproctitle() {
         // Variadic: verify linkage by calling with an empty format string.
-        unsafe { setproctitle(b"\0".as_ptr().cast()) }
+        unsafe { setproctitle(c"".as_ptr()) }
     }
 
     // <bsd/stdio.h>
     #[test]
     fn link_stdio() {
-        let _: unsafe extern "C" fn(*const c_char, *const c_char) -> *const c_char = fmtcheck;
-        let _: unsafe extern "C" fn(*mut FILE, *mut size_t) -> *mut c_char = fgetln;
+        link!(
+            fmtcheck,
+            unsafe extern "C" fn(*const c_char, *const c_char) -> *const c_char
+        );
+        link!(
+            fgetln,
+            unsafe extern "C" fn(*mut FILE, *mut size_t) -> *mut c_char
+        );
         #[allow(clippy::type_complexity)]
-        let _: unsafe extern "C" fn(
-            *const c_void,
-            Option<unsafe extern "C" fn(*mut c_void, *mut c_char, c_int) -> c_int>,
-            Option<unsafe extern "C" fn(*mut c_void, *const c_char, c_int) -> c_int>,
-            Option<unsafe extern "C" fn(*mut c_void, off_t, c_int) -> off_t>,
-            Option<unsafe extern "C" fn(*mut c_void) -> c_int>,
-        ) -> *mut FILE = funopen;
-        let _: unsafe extern "C" fn(*mut FILE) -> c_int = fpurge;
+        {
+            link!(
+                funopen,
+                unsafe extern "C" fn(
+                    *const c_void,
+                    Option<unsafe extern "C" fn(*mut c_void, *mut c_char, c_int) -> c_int>,
+                    Option<unsafe extern "C" fn(*mut c_void, *const c_char, c_int) -> c_int>,
+                    Option<unsafe extern "C" fn(*mut c_void, off_t, c_int) -> off_t>,
+                    Option<unsafe extern "C" fn(*mut c_void) -> c_int>,
+                ) -> *mut FILE
+            );
+        }
+        link!(fpurge, unsafe extern "C" fn(*mut FILE) -> c_int);
     }
 
     // <bsd/readpassphrase.h>
     #[test]
     fn link_readpassphrase() {
-        let _: unsafe extern "C" fn(*const c_char, *mut c_char, size_t, c_int) -> *mut c_char =
-            readpassphrase;
+        link!(
+            readpassphrase,
+            unsafe extern "C" fn(*const c_char, *mut c_char, size_t, c_int) -> *mut c_char
+        );
     }
 
-    // <bsd/vis.h>
+    // <bsd/vis.h> — functions available everywhere we support vis.
     #[test]
     fn link_vis() {
-        let _: unsafe extern "C" fn(*mut c_char, c_int, c_int, c_int) -> *mut c_char = vis;
-        let _: unsafe extern "C" fn(*mut c_char, size_t, c_int, c_int, c_int) -> *mut c_char = nvis;
-        let _: unsafe extern "C" fn(
-            *mut c_char,
-            c_int,
-            c_int,
-            c_int,
-            *const c_char,
-        ) -> *mut c_char = svis;
-        let _: unsafe extern "C" fn(
-            *mut c_char,
-            size_t,
-            c_int,
-            c_int,
-            c_int,
-            *const c_char,
-        ) -> *mut c_char = snvis;
-        let _: unsafe extern "C" fn(*mut c_char, *const c_char, c_int) -> c_int = strvis;
-        let _: unsafe extern "C" fn(*mut *mut c_char, *const c_char, c_int) -> c_int = stravis;
-        let _: unsafe extern "C" fn(*mut c_char, *const c_char, c_int, *const c_char) -> c_int =
-            strsvis;
-        let _: unsafe extern "C" fn(
-            *mut c_char,
-            size_t,
-            *const c_char,
-            c_int,
-            *const c_char,
-        ) -> c_int = strsnvis;
-        let _: unsafe extern "C" fn(*mut c_char, *const c_char, size_t, c_int) -> c_int = strvisx;
-        let _: unsafe extern "C" fn(*mut c_char, size_t, *const c_char, size_t, c_int) -> c_int =
-            strnvisx;
-        let _: unsafe extern "C" fn(
-            *mut c_char,
-            size_t,
-            *const c_char,
-            size_t,
-            c_int,
-            *mut c_int,
-        ) -> c_int = strenvisx;
-        let _: unsafe extern "C" fn(
-            *mut c_char,
-            *const c_char,
-            size_t,
-            c_int,
-            *const c_char,
-        ) -> c_int = strsvisx;
-        let _: unsafe extern "C" fn(
-            *mut c_char,
-            size_t,
-            *const c_char,
-            size_t,
-            c_int,
-            *const c_char,
-        ) -> c_int = strsnvisx;
-        let _: unsafe extern "C" fn(
-            *mut c_char,
-            size_t,
-            *const c_char,
-            size_t,
-            c_int,
-            *const c_char,
-            *mut c_int,
-        ) -> c_int = strsenvisx;
-        let _: unsafe extern "C" fn(*mut c_char, *const c_char) -> c_int = strunvis;
-        let _: unsafe extern "C" fn(*mut c_char, *const c_char, c_int) -> c_int = strunvisx;
-        let _: unsafe extern "C" fn(*mut c_char, size_t, *const c_char, c_int) -> c_int =
-            strnunvisx;
-        let _: unsafe extern "C" fn(*mut c_char, c_int, *mut c_int, c_int) -> c_int = unvis;
+        link!(
+            vis,
+            unsafe extern "C" fn(*mut c_char, c_int, c_int, c_int) -> *mut c_char
+        );
+        link!(
+            strvis,
+            unsafe extern "C" fn(*mut c_char, *const c_char, c_int) -> c_int
+        );
+        link!(
+            stravis,
+            unsafe extern "C" fn(*mut *mut c_char, *const c_char, c_int) -> c_int
+        );
+        link!(
+            strvisx,
+            unsafe extern "C" fn(*mut c_char, *const c_char, size_t, c_int) -> c_int
+        );
+        link!(
+            strunvis,
+            unsafe extern "C" fn(*mut c_char, *const c_char) -> c_int
+        );
+        link!(
+            unvis,
+            unsafe extern "C" fn(*mut c_char, c_int, *mut c_int, c_int) -> c_int
+        );
+    }
+
+    // The "extended" vis family (nvis/svis/snvis/strsvis/strsnvis/strnvisx
+    // and friends) is a NetBSD/libbsd extension.  OpenBSD's <vis.h> ships
+    // only the small surface tested above.
+    #[test]
+    #[cfg(not(target_os = "openbsd"))]
+    fn link_vis_extended() {
+        link!(
+            nvis,
+            unsafe extern "C" fn(*mut c_char, size_t, c_int, c_int, c_int) -> *mut c_char
+        );
+        link!(
+            svis,
+            unsafe extern "C" fn(*mut c_char, c_int, c_int, c_int, *const c_char) -> *mut c_char
+        );
+        link!(
+            snvis,
+            unsafe extern "C" fn(
+                *mut c_char,
+                size_t,
+                c_int,
+                c_int,
+                c_int,
+                *const c_char,
+            ) -> *mut c_char
+        );
+        link!(
+            strsvis,
+            unsafe extern "C" fn(*mut c_char, *const c_char, c_int, *const c_char) -> c_int
+        );
+        link!(
+            strsnvis,
+            unsafe extern "C" fn(*mut c_char, size_t, *const c_char, c_int, *const c_char) -> c_int
+        );
+        link!(
+            strnvisx,
+            unsafe extern "C" fn(*mut c_char, size_t, *const c_char, size_t, c_int) -> c_int
+        );
+        link!(
+            strenvisx,
+            unsafe extern "C" fn(
+                *mut c_char,
+                size_t,
+                *const c_char,
+                size_t,
+                c_int,
+                *mut c_int,
+            ) -> c_int
+        );
+        link!(
+            strsvisx,
+            unsafe extern "C" fn(*mut c_char, *const c_char, size_t, c_int, *const c_char) -> c_int
+        );
+        link!(
+            strsnvisx,
+            unsafe extern "C" fn(
+                *mut c_char,
+                size_t,
+                *const c_char,
+                size_t,
+                c_int,
+                *const c_char,
+            ) -> c_int
+        );
+        link!(
+            strsenvisx,
+            unsafe extern "C" fn(
+                *mut c_char,
+                size_t,
+                *const c_char,
+                size_t,
+                c_int,
+                *const c_char,
+                *mut c_int,
+            ) -> c_int
+        );
+        link!(
+            strunvisx,
+            unsafe extern "C" fn(*mut c_char, *const c_char, c_int) -> c_int
+        );
+        link!(
+            strnunvisx,
+            unsafe extern "C" fn(*mut c_char, size_t, *const c_char, c_int) -> c_int
+        );
+    }
+
+    // strnvis/strnunvis split into two camps:
+    //   * "OpenBSD order" (dst, src, dlen[, flag]) — used by OpenBSD's
+    //     native libc *and* by the default versioned symbol exported by
+    //     libbsd on Linux (libbsd's header redirects C callers to
+    //     `strnvis_netbsd`, but the unversioned export keeps OpenBSD
+    //     order — which is what a Rust `extern` block binds to).
+    //   * "NetBSD order" (dst, dlen, src[, flag]) — used by NetBSD,
+    //     macOS, and FreeBSD (FreeBSD imported NetBSD's libc-vis).
+    #[test]
+    #[cfg(any(target_os = "linux", target_os = "openbsd"))]
+    fn link_vis_strnvis_openbsd_order() {
+        link!(
+            strnvis,
+            unsafe extern "C" fn(*mut c_char, *const c_char, size_t, c_int) -> c_int
+        );
+        link!(
+            strnunvis,
+            unsafe extern "C" fn(*mut c_char, *const c_char, size_t) -> ssize_t
+        );
     }
 
     #[test]
-    #[cfg(any(target_os = "linux", target_os = "freebsd"))]
-    fn link_vis_strnvis_freebsd() {
-        let _: unsafe extern "C" fn(*mut c_char, *const c_char, size_t, c_int) -> c_int = strnvis;
-        let _: unsafe extern "C" fn(*mut c_char, *const c_char, size_t) -> ssize_t = strnunvis;
-    }
-
-    #[test]
-    #[cfg(any(target_os = "macos", target_os = "netbsd", target_os = "openbsd"))]
-    fn link_vis_strnvis_netbsd() {
-        let _: unsafe extern "C" fn(*mut c_char, size_t, *const c_char, c_int) -> c_int = strnvis;
-        let _: unsafe extern "C" fn(*mut c_char, size_t, *const c_char) -> c_int = strnunvis;
+    #[cfg(any(target_os = "macos", target_os = "netbsd", target_os = "freebsd"))]
+    fn link_vis_strnvis_netbsd_order() {
+        link!(
+            strnvis,
+            unsafe extern "C" fn(*mut c_char, size_t, *const c_char, c_int) -> c_int
+        );
+        link!(
+            strnunvis,
+            unsafe extern "C" fn(*mut c_char, size_t, *const c_char) -> c_int
+        );
     }
 
     // <bsd/libutil.h>
     #[test]
     #[cfg(any(target_os = "linux", target_os = "freebsd", target_os = "netbsd"))]
     fn link_libutil() {
-        let _: unsafe extern "C" fn(
-            *mut c_char,
-            size_t,
-            i64,
-            *const c_char,
-            c_int,
-            c_int,
-        ) -> c_int = humanize_number;
-        let _: unsafe extern "C" fn(*const c_char, *mut u64) -> c_int = expand_number;
-        let _: unsafe extern "C" fn(*const c_char, mode_t, *mut pid_t) -> *mut pidfh = pidfile_open;
-        let _: unsafe extern "C" fn(*const pidfh) -> c_int = pidfile_fileno;
-        let _: unsafe extern "C" fn(*mut pidfh) -> c_int = pidfile_write;
-        let _: unsafe extern "C" fn(*mut pidfh) -> c_int = pidfile_close;
-        let _: unsafe extern "C" fn(*mut pidfh) -> c_int = pidfile_remove;
+        link!(
+            humanize_number,
+            unsafe extern "C" fn(*mut c_char, size_t, i64, *const c_char, c_int, c_int) -> c_int
+        );
+        link!(
+            expand_number,
+            unsafe extern "C" fn(*const c_char, *mut u64) -> c_int
+        );
+    }
+
+    // FreeBSD-style pidfile_*.  NetBSD has a different one-function pidfile(3)
+    // API in libutil; not bound here.
+    #[test]
+    #[cfg(any(target_os = "linux", target_os = "freebsd"))]
+    fn link_pidfile() {
+        link!(
+            pidfile_open,
+            unsafe extern "C" fn(*const c_char, mode_t, *mut pid_t) -> *mut pidfh
+        );
+        link!(pidfile_fileno, unsafe extern "C" fn(*const pidfh) -> c_int);
+        link!(pidfile_write, unsafe extern "C" fn(*mut pidfh) -> c_int);
+        link!(pidfile_close, unsafe extern "C" fn(*mut pidfh) -> c_int);
+        link!(pidfile_remove, unsafe extern "C" fn(*mut pidfh) -> c_int);
     }
 
     // flopen/flopenat are FreeBSD-specific; not available on NetBSD.
@@ -377,60 +532,76 @@ mod tests {
     fn link_flopen() {
         // Variadic; verify linkage by calling.
         unsafe {
-            let fd = flopen(b"/dev/null\0".as_ptr().cast(), 0);
+            let fd = flopen(c"/dev/null".as_ptr(), 0);
             if fd >= 0 {
                 libc::close(fd);
             }
             // Invalid dirfd — fails immediately, just verifies linkage.
-            let _ = flopenat(-1, b"\0".as_ptr().cast(), 0);
+            let _ = flopenat(-1, c"".as_ptr(), 0);
         }
     }
 
     #[test]
     fn link_fparseln() {
-        let _: unsafe extern "C" fn(
-            *mut FILE,
-            *mut size_t,
-            *mut size_t,
-            *const [c_char; 3],
-            c_int,
-        ) -> *mut c_char = fparseln;
+        link!(
+            fparseln,
+            unsafe extern "C" fn(
+                *mut FILE,
+                *mut size_t,
+                *mut size_t,
+                *const [c_char; 3],
+                c_int,
+            ) -> *mut c_char
+        );
     }
 
-    // <bsd/nlist.h>
+    // <bsd/nlist.h> — OpenBSD removed nlist(3) from libc.
     #[test]
-    #[cfg(not(target_os = "macos"))]
+    #[cfg(not(any(target_os = "macos", target_os = "openbsd")))]
     fn link_nlist() {
-        let _: unsafe extern "C" fn(*const c_char, *mut nlist) -> c_int = nlist;
+        link!(
+            nlist,
+            unsafe extern "C" fn(*const c_char, *mut nlist) -> c_int
+        );
     }
 
-    // <bsd/stringlist.h>
+    // <bsd/stringlist.h> — not present on OpenBSD.
     #[test]
+    #[cfg(not(target_os = "openbsd"))]
     fn link_stringlist() {
-        let _: unsafe extern "C" fn() -> *mut StringList = sl_init;
-        let _: unsafe extern "C" fn(*mut StringList, *mut c_char) -> c_int = sl_add;
-        let _: unsafe extern "C" fn(*mut StringList, c_int) = sl_free;
-        let _: unsafe extern "C" fn(*mut StringList, *const c_char) -> *mut c_char = sl_find;
+        link!(sl_init, unsafe extern "C" fn() -> *mut StringList);
+        link!(
+            sl_add,
+            unsafe extern "C" fn(*mut StringList, *mut c_char) -> c_int
+        );
+        link!(sl_free, unsafe extern "C" fn(*mut StringList, c_int));
+        link!(
+            sl_find,
+            unsafe extern "C" fn(*mut StringList, *const c_char) -> *mut c_char
+        );
     }
 
     #[test]
-    #[cfg(target_os = "linux")]
-    fn link_stringlist_linux() {
-        let _: unsafe extern "C" fn(*mut StringList, *const c_char, c_int) -> c_int = sl_delete;
+    #[cfg(any(target_os = "netbsd", target_os = "freebsd"))]
+    fn link_sl_delete() {
+        link!(
+            sl_delete,
+            unsafe extern "C" fn(*mut StringList, *const c_char, c_int) -> c_int
+        );
     }
 
     // <bsd/timeconv.h>
     #[test]
     #[cfg(target_os = "linux")]
     fn link_timeconv() {
-        let _: unsafe extern "C" fn(i32) -> libc::time_t = time32_to_time;
-        let _: unsafe extern "C" fn(libc::time_t) -> i32 = time_to_time32;
-        let _: unsafe extern "C" fn(i64) -> libc::time_t = time64_to_time;
-        let _: unsafe extern "C" fn(libc::time_t) -> i64 = time_to_time64;
-        let _: unsafe extern "C" fn(libc::time_t) -> c_long = time_to_long;
-        let _: unsafe extern "C" fn(c_long) -> libc::time_t = long_to_time;
-        let _: unsafe extern "C" fn(libc::time_t) -> c_int = time_to_int;
-        let _: unsafe extern "C" fn(c_int) -> libc::time_t = int_to_time;
+        link!(time32_to_time, unsafe extern "C" fn(i32) -> libc::time_t);
+        link!(time_to_time32, unsafe extern "C" fn(libc::time_t) -> i32);
+        link!(time64_to_time, unsafe extern "C" fn(i64) -> libc::time_t);
+        link!(time_to_time64, unsafe extern "C" fn(libc::time_t) -> i64);
+        link!(time_to_long, unsafe extern "C" fn(libc::time_t) -> c_long);
+        link!(long_to_time, unsafe extern "C" fn(c_long) -> libc::time_t);
+        link!(time_to_int, unsafe extern "C" fn(libc::time_t) -> c_int);
+        link!(int_to_time, unsafe extern "C" fn(c_int) -> libc::time_t);
     }
 
     // <bsd/err.h>
@@ -444,34 +615,60 @@ mod tests {
         }
     }
 
-    // <bsd/wchar.h>
+    // <bsd/wchar.h> — fgetwln is missing on OpenBSD.
     #[test]
     fn link_wchar() {
-        let _: unsafe extern "C" fn(*mut FILE, *mut size_t) -> *mut libc::wchar_t = fgetwln;
-        let _: unsafe extern "C" fn(*mut libc::wchar_t, *const libc::wchar_t, size_t) -> size_t =
-            wcslcat;
-        let _: unsafe extern "C" fn(*mut libc::wchar_t, *const libc::wchar_t, size_t) -> size_t =
-            wcslcpy;
+        link!(
+            wcslcat,
+            unsafe extern "C" fn(*mut libc::wchar_t, *const libc::wchar_t, size_t) -> size_t
+        );
+        link!(
+            wcslcpy,
+            unsafe extern "C" fn(*mut libc::wchar_t, *const libc::wchar_t, size_t) -> size_t
+        );
+    }
+
+    #[test]
+    #[cfg(not(target_os = "openbsd"))]
+    fn link_fgetwln() {
+        link!(
+            fgetwln,
+            unsafe extern "C" fn(*mut FILE, *mut size_t) -> *mut libc::wchar_t
+        );
     }
 
     // <bsd/grp.h>
     #[test]
     fn link_grp() {
-        let _: unsafe extern "C" fn(*const c_char, *mut gid_t) -> c_int = gid_from_group;
-        let _: unsafe extern "C" fn(gid_t, c_int) -> *const c_char = group_from_gid;
+        link!(
+            gid_from_group,
+            unsafe extern "C" fn(*const c_char, *mut gid_t) -> c_int
+        );
+        link!(
+            group_from_gid,
+            unsafe extern "C" fn(gid_t, c_int) -> *const c_char
+        );
     }
 
     // <bsd/pwd.h>
     #[test]
     fn link_pwd() {
-        let _: unsafe extern "C" fn(*const c_char, *mut uid_t) -> c_int = uid_from_user;
-        let _: unsafe extern "C" fn(uid_t, c_int) -> *const c_char = user_from_uid;
+        link!(
+            uid_from_user,
+            unsafe extern "C" fn(*const c_char, *mut uid_t) -> c_int
+        );
+        link!(
+            user_from_uid,
+            unsafe extern "C" fn(uid_t, c_int) -> *const c_char
+        );
     }
 
     // misc
     #[test]
     fn link_inet() {
-        let _: unsafe extern "C" fn(c_int, *const c_char, *mut c_void, size_t) -> c_int =
-            inet_net_pton;
+        link!(
+            inet_net_pton,
+            unsafe extern "C" fn(c_int, *const c_char, *mut c_void, size_t) -> c_int
+        );
     }
 }

@@ -147,8 +147,14 @@ unsafe extern "C" {
 
 // ---------------------------------------------------------------------------
 // <bsd/vis.h>
+//
+// The VIS_*/UNVIS_* numeric values, and the set of functions available,
+// diverge sharply between the NetBSD-family vis(3) (NetBSD, FreeBSD,
+// macOS, Linux/libbsd) and OpenBSD's smaller, older implementation.
+// Everything in this block is gated accordingly.
 // ---------------------------------------------------------------------------
 
+// Constants common to every supported platform.
 pub const VIS_OCTAL: c_int = 0x0001;
 pub const VIS_CSTYLE: c_int = 0x0002;
 pub const VIS_SP: c_int = 0x0004;
@@ -156,27 +162,91 @@ pub const VIS_TAB: c_int = 0x0008;
 pub const VIS_NL: c_int = 0x0010;
 pub const VIS_WHITE: c_int = VIS_SP | VIS_TAB | VIS_NL;
 pub const VIS_SAFE: c_int = 0x0020;
-pub const VIS_DQ: c_int = 0x8000;
-pub const VIS_NOSLASH: c_int = 0x0040;
-pub const VIS_HTTP1808: c_int = 0x0080;
-pub const VIS_HTTPSTYLE: c_int = 0x0080;
-pub const VIS_MIMESTYLE: c_int = 0x0100;
-pub const VIS_HTTP1866: c_int = 0x0200;
-pub const VIS_NOESCAPE: c_int = 0x0400;
-pub const VIS_GLOB: c_int = 0x1000;
-pub const VIS_SHELL: c_int = 0x2000;
-pub const VIS_META: c_int = VIS_WHITE | VIS_GLOB | VIS_SHELL;
-pub const VIS_NOLOCALE: c_int = 0x4000;
 
 pub const UNVIS_VALID: c_int = 1;
 pub const UNVIS_VALIDPUSH: c_int = 2;
 pub const UNVIS_NOCHAR: c_int = 3;
 pub const UNVIS_SYNBAD: c_int = -1;
 pub const UNVIS_ERROR: c_int = -2;
+
+// NetBSD-family vis(3): NetBSD, FreeBSD, macOS, and Linux via libbsd.
+#[cfg(not(target_os = "openbsd"))]
+pub const VIS_DQ: c_int = 0x8000;
+#[cfg(not(target_os = "openbsd"))]
+pub const VIS_NOSLASH: c_int = 0x0040;
+#[cfg(not(target_os = "openbsd"))]
+pub const VIS_HTTP1808: c_int = 0x0080;
+#[cfg(not(target_os = "openbsd"))]
+pub const VIS_HTTPSTYLE: c_int = 0x0080;
+#[cfg(not(target_os = "openbsd"))]
+pub const VIS_MIMESTYLE: c_int = 0x0100;
+#[cfg(not(target_os = "openbsd"))]
+pub const VIS_HTTP1866: c_int = 0x0200;
+#[cfg(not(target_os = "openbsd"))]
+pub const VIS_NOESCAPE: c_int = 0x0400;
+#[cfg(not(target_os = "openbsd"))]
+pub const VIS_GLOB: c_int = 0x1000;
+#[cfg(not(target_os = "openbsd"))]
+pub const VIS_SHELL: c_int = 0x2000;
+#[cfg(not(target_os = "openbsd"))]
+pub const VIS_META: c_int = VIS_WHITE | VIS_GLOB | VIS_SHELL;
+#[cfg(not(target_os = "openbsd"))]
+pub const VIS_NOLOCALE: c_int = 0x4000;
+#[cfg(not(target_os = "openbsd"))]
 pub const UNVIS_END: c_int = 0x0800;
 
+// OpenBSD's vis(3) has different numeric values and a smaller flag set.
+#[cfg(target_os = "openbsd")]
+pub const VIS_DQ: c_int = 0x0200;
+#[cfg(target_os = "openbsd")]
+pub const VIS_NOSLASH: c_int = 0x0040;
+#[cfg(target_os = "openbsd")]
+pub const VIS_GLOB: c_int = 0x0100;
+#[cfg(target_os = "openbsd")]
+pub const VIS_ALL: c_int = 0x0400;
+#[cfg(target_os = "openbsd")]
+pub const UNVIS_END: c_int = 1;
+
+// Functions present on every supported vis(3) implementation.
 unsafe extern "C" {
     pub fn vis(dst: *mut c_char, c: c_int, flag: c_int, nextc: c_int) -> *mut c_char;
+    pub fn strvis(dst: *mut c_char, src: *const c_char, flag: c_int) -> c_int;
+    pub fn stravis(dst: *mut *mut c_char, src: *const c_char, flag: c_int) -> c_int;
+    pub fn strvisx(dst: *mut c_char, src: *const c_char, len: size_t, flag: c_int) -> c_int;
+    pub fn strunvis(dst: *mut c_char, src: *const c_char) -> c_int;
+    pub fn unvis(cp: *mut c_char, c: c_int, apts: *mut c_int, flag: c_int) -> c_int;
+}
+
+// strnvis / strnunvis split into two parameter-order conventions:
+//
+// * "OpenBSD order"   (dst, src, dlen[, flag])
+//      - OpenBSD's native libc.
+//      - Linux/libbsd: libbsd's <vis.h> #define-redirects C callers to
+//        `strnvis_netbsd`, but the unversioned export — which is what
+//        a Rust `extern` block binds — keeps the OpenBSD signature.
+//        (We rely on this deliberately.)
+// * "NetBSD order"    (dst, dlen, src[, flag])
+//      - NetBSD (origin of the convention).
+//      - FreeBSD (imported NetBSD's libc-vis verbatim).
+//      - macOS (also derived from NetBSD's libc-vis).
+//
+// Getting this wrong is silent UB: a wrongly-ordered `size_t` is read
+// as a pointer.  Keep the cfgs and the link-test cfgs in lib.rs in sync.
+#[cfg(any(target_os = "linux", target_os = "openbsd"))]
+unsafe extern "C" {
+    pub fn strnvis(dst: *mut c_char, src: *const c_char, dlen: size_t, flag: c_int) -> c_int;
+    pub fn strnunvis(dst: *mut c_char, src: *const c_char, dlen: size_t) -> ssize_t;
+}
+#[cfg(any(target_os = "macos", target_os = "netbsd", target_os = "freebsd"))]
+unsafe extern "C" {
+    pub fn strnvis(dst: *mut c_char, dlen: size_t, src: *const c_char, flag: c_int) -> c_int;
+    pub fn strnunvis(dst: *mut c_char, dlen: size_t, src: *const c_char) -> c_int;
+}
+
+// "Extended" vis(3) functions added by NetBSD and shipped on
+// NetBSD, FreeBSD, macOS, and Linux/libbsd.  OpenBSD does not have them.
+#[cfg(not(target_os = "openbsd"))]
+unsafe extern "C" {
     pub fn nvis(dst: *mut c_char, dlen: size_t, c: c_int, flag: c_int, nextc: c_int)
     -> *mut c_char;
 
@@ -196,16 +266,6 @@ unsafe extern "C" {
         extra: *const c_char,
     ) -> *mut c_char;
 
-    pub fn strvis(dst: *mut c_char, src: *const c_char, flag: c_int) -> c_int;
-    pub fn stravis(dst: *mut *mut c_char, src: *const c_char, flag: c_int) -> c_int;
-    // NB: strnvis has different parameter order depending on the platform's
-    // convention: FreeBSD (and libbsd) put src before dlen, while NetBSD
-    // (and macOS/OpenBSD) put dlen before src.
-    #[cfg(any(target_os = "linux", target_os = "freebsd"))]
-    pub fn strnvis(dst: *mut c_char, src: *const c_char, dlen: size_t, flag: c_int) -> c_int;
-    #[cfg(any(target_os = "macos", target_os = "netbsd", target_os = "openbsd"))]
-    pub fn strnvis(dst: *mut c_char, dlen: size_t, src: *const c_char, flag: c_int) -> c_int;
-
     pub fn strsvis(
         dst: *mut c_char,
         src: *const c_char,
@@ -220,7 +280,6 @@ unsafe extern "C" {
         extra: *const c_char,
     ) -> c_int;
 
-    pub fn strvisx(dst: *mut c_char, src: *const c_char, len: size_t, flag: c_int) -> c_int;
     pub fn strnvisx(
         dst: *mut c_char,
         dlen: size_t,
@@ -262,16 +321,8 @@ unsafe extern "C" {
         cerr_ptr: *mut c_int,
     ) -> c_int;
 
-    pub fn strunvis(dst: *mut c_char, src: *const c_char) -> c_int;
-    #[cfg(any(target_os = "linux", target_os = "freebsd"))]
-    pub fn strnunvis(dst: *mut c_char, src: *const c_char, dlen: size_t) -> ssize_t;
-    #[cfg(any(target_os = "macos", target_os = "netbsd", target_os = "openbsd"))]
-    pub fn strnunvis(dst: *mut c_char, dlen: size_t, src: *const c_char) -> c_int;
-
     pub fn strunvisx(dst: *mut c_char, src: *const c_char, flag: c_int) -> c_int;
     pub fn strnunvisx(dst: *mut c_char, dlen: size_t, src: *const c_char, flag: c_int) -> c_int;
-
-    pub fn unvis(cp: *mut c_char, c: c_int, apts: *mut c_int, flag: c_int) -> c_int;
 }
 
 // ---------------------------------------------------------------------------
@@ -299,7 +350,7 @@ pub const FPARSELN_UNESCCOMM: c_int = 0x04;
 pub const FPARSELN_UNESCREST: c_int = 0x08;
 pub const FPARSELN_UNESCALL: c_int = 0x0f;
 
-#[cfg(any(target_os = "linux", target_os = "freebsd", target_os = "netbsd"))]
+#[cfg(any(target_os = "linux", target_os = "freebsd"))]
 #[repr(C)]
 pub struct pidfh {
     _opaque: [u8; 0],
@@ -317,6 +368,12 @@ unsafe extern "C" {
     ) -> c_int;
     pub fn expand_number(buf: *const c_char, num: *mut u64) -> c_int;
 
+}
+
+// NetBSD's pidfile(3) is a different one-function API; the FreeBSD-style
+// pidfile_* family is only present on FreeBSD and Linux/libbsd.
+#[cfg(any(target_os = "linux", target_os = "freebsd"))]
+unsafe extern "C" {
     pub fn pidfile_open(path: *const c_char, mode: mode_t, pidptr: *mut pid_t) -> *mut pidfh;
     pub fn pidfile_fileno(pfh: *const pidfh) -> c_int;
     pub fn pidfile_write(pfh: *mut pidfh) -> c_int;
@@ -346,7 +403,8 @@ unsafe extern "C" {
 // ---------------------------------------------------------------------------
 
 // On macOS, struct nlist has a different layout (Mach-O format).
-#[cfg(not(target_os = "macos"))]
+// OpenBSD removed nlist(3) from libc entirely.
+#[cfg(not(any(target_os = "macos", target_os = "openbsd")))]
 #[repr(C)]
 pub struct nlist {
     pub n_name: *mut c_char,
@@ -377,15 +435,16 @@ pub const N_EXT: u8 = 0x01;
 pub const N_TYPE: u8 = 0x1e;
 pub const N_STAB: u8 = 0xe0;
 
-#[cfg(not(target_os = "macos"))]
+#[cfg(not(any(target_os = "macos", target_os = "openbsd")))]
 unsafe extern "C" {
     pub fn nlist(filename: *const c_char, list: *mut nlist) -> c_int;
 }
 
 // ---------------------------------------------------------------------------
-// <bsd/stringlist.h>
+// <bsd/stringlist.h> — not present on OpenBSD.
 // ---------------------------------------------------------------------------
 
+#[cfg(not(target_os = "openbsd"))]
 #[repr(C)]
 pub struct StringList {
     pub sl_str: *mut *mut c_char,
@@ -393,12 +452,19 @@ pub struct StringList {
     pub sl_cur: size_t,
 }
 
+#[cfg(not(target_os = "openbsd"))]
 unsafe extern "C" {
     pub fn sl_init() -> *mut StringList;
     pub fn sl_add(sl: *mut StringList, item: *mut c_char) -> c_int;
     pub fn sl_free(sl: *mut StringList, freel: c_int);
     pub fn sl_find(sl: *mut StringList, name: *const c_char) -> *mut c_char;
-    #[cfg(target_os = "linux")]
+}
+
+// sl_delete is declared in libbsd's <stringlist.h> but is NOT exported
+// from libbsd's shared library, so binding it on Linux fails at link
+// time.  NetBSD/FreeBSD ship a real implementation.
+#[cfg(any(target_os = "netbsd", target_os = "freebsd"))]
+unsafe extern "C" {
     pub fn sl_delete(sl: *mut StringList, name: *const c_char, freel: c_int) -> c_int;
 }
 
@@ -440,9 +506,14 @@ unsafe extern "C" {
 // ---------------------------------------------------------------------------
 
 unsafe extern "C" {
-    pub fn fgetwln(stream: *mut FILE, len: *mut size_t) -> *mut libc::wchar_t;
     pub fn wcslcat(dst: *mut libc::wchar_t, src: *const libc::wchar_t, size: size_t) -> size_t;
     pub fn wcslcpy(dst: *mut libc::wchar_t, src: *const libc::wchar_t, size: size_t) -> size_t;
+}
+
+// fgetwln is absent on OpenBSD.
+#[cfg(not(target_os = "openbsd"))]
+unsafe extern "C" {
+    pub fn fgetwln(stream: *mut FILE, len: *mut size_t) -> *mut libc::wchar_t;
 }
 
 // ---------------------------------------------------------------------------
