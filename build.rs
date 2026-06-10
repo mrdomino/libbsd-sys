@@ -25,13 +25,22 @@ fn main() {
         .unwrap()
         .into_string()
         .unwrap();
+    let target_vendor = tracked_var_os("CARGO_CFG_TARGET_VENDOR")
+        .map(|s| s.into_string().unwrap())
+        .unwrap_or_default();
+    // Apple's libSystem provides the same BSD surface across macOS, iOS,
+    // tvOS, watchOS, and visionOS — match the vendor, not just "macos".
+    // fparseln lives in libutil on Apple platforms (Darwin's libutil is
+    // a regular dylib alongside libSystem).
+    if target_vendor == "apple" {
+        println!("cargo:rustc-link-lib=util");
+        return;
+    }
     match target_os.as_str() {
-        // On macOS, OpenBSD, and NetBSD the BSD functions live in libc
-        // (or libSystem on macOS), so no extra library is needed.
-        "macos" | "openbsd" | "netbsd" => return,
-        // On FreeBSD, most functions are in libc, but humanize_number,
-        // pidfile_*, flopen, and expand_number live in libutil.
-        "freebsd" => {
+        // FreeBSD, NetBSD, and OpenBSD keep most functions in libc, but
+        // a few (humanize_number, expand_number, fparseln, pidfile_*,
+        // flopen) live in libutil.
+        "freebsd" | "netbsd" | "openbsd" => {
             println!("cargo:rustc-link-lib=util");
             return;
         }
@@ -69,17 +78,21 @@ fn main() {
         };
         let mut cfg = pkg_config::Config::new();
         cfg.atleast_version("0.11");
-        if statik {
-            cfg.statik(true);
-        }
+        // Always set explicitly so that LIBBSD_STATIC=0 actively suppresses
+        // static linking, even when PKG_CONFIG_ALL_STATIC is set.
+        cfg.statik(statik);
         if let Ok(lib) = cfg.probe(pkg) {
             // Re-export paths so downstream build scripts can use them
-            // via DEP_BSD_INCLUDE / DEP_BSD_LIBDIR.
-            for p in &lib.include_paths {
-                println!("cargo:include={}", p.display());
+            // via DEP_BSD_INCLUDE / DEP_BSD_LIBDIR.  Cargo's links
+            // metadata is last-write-wins on the key, so multiple
+            // `cargo:include=` lines would silently discard all but
+            // the last path.  Pack them into one platform-appropriate
+            // PATH-style value instead.
+            if let Ok(joined) = std::env::join_paths(&lib.include_paths) {
+                println!("cargo:include={}", joined.to_string_lossy());
             }
-            for p in &lib.link_paths {
-                println!("cargo:libdir={}", p.display());
+            if let Ok(joined) = std::env::join_paths(&lib.link_paths) {
+                println!("cargo:libdir={}", joined.to_string_lossy());
             }
             return;
         }
