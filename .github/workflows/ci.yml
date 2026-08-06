@@ -91,6 +91,7 @@ jobs:
           usesh: true
           prepare: |
             /usr/sbin/pkg_add rust
+          cache-after-prepare: true
           run: |
             cargo build --verbose
             cargo test --verbose
