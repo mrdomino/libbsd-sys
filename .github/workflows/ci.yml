@@ -22,6 +22,30 @@ jobs:
       - run: cargo build --verbose
       - run: cargo test --verbose
 
+  # Guard the version floors in Cargo.toml.  `msrv` above tests the
+  # declared MSRV against the *newest* dependencies; this job tests the
+  # declared MSRV against the *oldest* ones we claim to accept, which is
+  # the combination a downstream `-Z minimal-versions` build actually
+  # gets.  `direct-minimal-versions` lowers only our own direct
+  # dependencies — plain `minimal-versions` would also lower transitive
+  # ones (cc, via tcm-readpassphrase-vendored), whose floors are not
+  # ours to be honest about.
+  minimal-versions:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Install libbsd-dev
+        run: sudo sh -c 'apt-get update && apt-get install -y libbsd-dev'
+      - run: rustup toolchain install nightly 1.85 --profile minimal --no-self-update
+      # -Z direct-minimal-versions is nightly-only; the resulting
+      # lockfile is then built and tested on the MSRV toolchain.
+      - run: cargo +nightly generate-lockfile -Z direct-minimal-versions
+      - run: cargo +nightly tree --depth 1
+      - run: cargo +1.85 build --verbose
+      - run: cargo +1.85 test --verbose
+
   linux:
     runs-on: ubuntu-latest
     strategy:
