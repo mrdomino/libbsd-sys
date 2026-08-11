@@ -1,0 +1,7 @@
+rules:
+  # Job IDs (msrv, linux, macos, etc.) are descriptive; an extra `name:`
+  # would just duplicate them in the GitHub UI.
+  anonymous-definition:
+    ignore:
+      - ci.yml
+      - release.yaml
