@@ -163,6 +163,14 @@ unsafe extern "C" {
     ) -> *mut c_char;
 }
 
+// On NetBSD there is no system readpassphrase to bind, so the
+// `vendored-readpassphrase` feature (on by default) pulls in Todd C.
+// Miller's ISC-licensed C implementation and re-exports it here, giving
+// the same signature as the declaration above.  `size_t` is `usize` on
+// every NetBSD target, so the two agree.
+#[cfg(all(target_os = "netbsd", feature = "vendored-readpassphrase"))]
+pub use tcm_readpassphrase_vendored::readpassphrase;
+
 // ---------------------------------------------------------------------------
 // <bsd/vis.h>
 //

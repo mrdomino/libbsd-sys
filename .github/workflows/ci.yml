@@ -95,6 +95,10 @@ jobs:
           run: |
             cargo build --verbose
             cargo test --verbose
+            # NetBSD is the only platform where vendored-readpassphrase
+            # does anything, so exercise both sides of the feature here.
+            cargo build --verbose --no-default-features
+            cargo test --verbose --no-default-features
 
   lint:
     runs-on: ubuntu-latest

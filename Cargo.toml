@@ -14,6 +14,15 @@ rust-version = "1.85"
 description = "Raw FFI bindings to libbsd"
 
 [features]
+default = ["vendored-readpassphrase"]
+# Supply `readpassphrase` on NetBSD, whose libc is the only one of our
+# supported platforms that does not export it, by compiling Todd C.
+# Miller's ISC-licensed C implementation from
+# `tcm-readpassphrase-vendored`.  The dependency is target-gated, so this
+# feature is inert everywhere else.  Disable it (`default-features =
+# false`) if you would rather keep ISC-licensed code out of your
+# dependency tree and go without `readpassphrase` on NetBSD.
+vendored-readpassphrase = ["dep:tcm-readpassphrase-vendored"]
 # Link libbsd statically (Linux only; ignored on native BSDs).
 static = []
 # Use libbsd overlay mode (Linux only).  In overlay mode the libbsd headers
@@ -24,6 +33,9 @@ overlay = []
 
 [dependencies]
 libc = "0.2"
+
+[target.'cfg(target_os = "netbsd")'.dependencies]
+tcm-readpassphrase-vendored = { version = "0.2.2", optional = true }
 
 [build-dependencies]
 pkg-config = "0.3"

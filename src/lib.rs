@@ -34,7 +34,8 @@
 //!   `nlist(3)`.
 //! * NetBSD lacks `explicit_bzero`, `reallocf`, `readpassphrase`,
 //!   `expand_number`, the FreeBSD-style `pidfile_*` family, and most
-//!   FreeBSD extensions.
+//!   FreeBSD extensions.  Of those, `readpassphrase` is supplied from
+//!   vendored C source — see [Features](#features) below.
 //! * OpenBSD lacks the entire NetBSD-family extended `vis(3)` surface
 //!   (`nvis`, `svis`, `strsvis`, `strnvisx`, …), `<bsd/stringlist.h>`,
 //!   `nlist(3)`, `strnstr`, `reallocf`, `fmtcheck`, and `fgetwln`.
@@ -48,6 +49,25 @@
 //!   OpenBSD signature, and that is what a Rust `extern` block binds to.
 //! * NetBSD-order `(dst, dlen, src[, flag])`: used by NetBSD, FreeBSD
 //!   (imported from NetBSD's libc-vis), and macOS.
+//!
+//! # Features
+//!
+//! - **`vendored-readpassphrase`** *(default)* — On NetBSD, whose libc
+//!   does not export `readpassphrase`, build Todd C. Miller's
+//!   ISC-licensed implementation from
+//!   [`tcm-readpassphrase-vendored`](https://crates.io/crates/tcm-readpassphrase-vendored)
+//!   and re-export it, so `readpassphrase` is available on every
+//!   platform this crate supports.  The dependency is target-gated to
+//!   NetBSD, so the feature is inert elsewhere.  Turn it off with
+//!   `default-features = false` to keep ISC-licensed code out of the
+//!   dependency tree; `readpassphrase` is then absent on NetBSD, as it
+//!   was before this feature existed.
+//! - **`static`** — Link libbsd statically.  Linux only; ignored on the
+//!   native BSDs.
+//! - **`overlay`** — Probe `libbsd-overlay` instead of `libbsd` via
+//!   pkg-config, so that downstream `-sys` crates compiling C code can
+//!   include plain `<string.h>` rather than `<bsd/string.h>`.  Linux
+//!   only.
 //!
 //! # Environment variables
 //!
@@ -359,9 +379,13 @@ mod tests {
         link!(fpurge, unsafe extern "C" fn(*mut FILE) -> c_int);
     }
 
-    // <bsd/readpassphrase.h> — missing on NetBSD.
+    // <bsd/readpassphrase.h> — missing from NetBSD's libc, where it comes
+    // from the vendored C source instead.
     #[test]
-    #[cfg(not(target_os = "netbsd"))]
+    #[cfg(any(
+        not(target_os = "netbsd"),
+        all(target_os = "netbsd", feature = "vendored-readpassphrase")
+    ))]
     fn link_readpassphrase() {
         link!(
             readpassphrase,
