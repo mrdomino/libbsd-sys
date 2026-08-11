@@ -1,0 +1,67 @@
+name: Release-plz
+
+on: # zizmor: ignore[concurrency-limits] the release job must never be cancelled mid-publish; the release-pr job carries its own concurrency group
+  push:
+    branches: [main]
+
+permissions: {}
+
+jobs:
+  # Open the release PR, or refresh it as commits land.  Nothing is
+  # tagged or published here — that happens when the PR is merged.
+  release-pr:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read # for actions/checkout; the app token below does the writing
+    concurrency:
+      group: release-plz-${{ github.ref }}
+      cancel-in-progress: false
+    steps:
+      # release-plz opens the PR as this app rather than as
+      # github-actions[bot], because pull requests created with the
+      # default GITHUB_TOKEN do not trigger `pull_request` workflows —
+      # CI would never run on the release PR.
+      - uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
+        id: app-token
+        with:
+          app-id: ${{ vars.RELEASE_PLZ_APP_ID }}
+          private-key: ${{ secrets.RELEASE_PLZ_APP_PRIVATE_KEY }}
+          # Scope the token down from the app's blanket installation
+          # permissions: push the release-plz-* branch, open the PR.
+          permission-contents: write
+          permission-pull-requests: write
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0 # release-plz reads the full history to build the changelog
+          persist-credentials: false
+      - name: Install libbsd-dev
+        run: sudo sh -c 'apt-get update && apt-get install -y libbsd-dev'
+      - run: rustup toolchain install stable --profile minimal --no-self-update && rustup default stable
+      - uses: release-plz/action@1a0c5beec2fe4e91727549b5d2d0715ed28684bb # v0.5.131
+        with:
+          command: release-pr
+        env:
+          GITHUB_TOKEN: ${{ steps.app-token.outputs.token }}
+
+  # Publish, tag, and create the GitHub release.  `release_always =
+  # false` in release-plz.toml means this is a no-op unless the pushed
+  # commit is the merge of a release-plz-* branch.
+  release:
+    runs-on: ubuntu-latest
+    environment: crates-io
+    permissions:
+      contents: write # create the git tag and the GitHub release
+      id-token: write # crates.io Trusted Publishing (OIDC); release-plz mints the token itself
+      pull-requests: read # to check whether this commit came from the release PR
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - run: sudo sh -c 'apt-get update && apt-get install -y libbsd-dev'
+      - run: rustup toolchain install stable --profile minimal --no-self-update && rustup default stable
+      - uses: release-plz/action@1a0c5beec2fe4e91727549b5d2d0715ed28684bb # v0.5.131
+        with:
+          command: release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
