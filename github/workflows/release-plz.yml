@@ -1,6 +1,6 @@
 name: Release-plz
 
-on: # zizmor: ignore[concurrency-limits] the release job must never be cancelled mid-publish; the release-pr job carries its own concurrency group
+on:
   push:
     branches: [main]
 
@@ -49,6 +49,16 @@ jobs:
   release:
     runs-on: ubuntu-latest
     environment: crates-io
+    # Serialize publishes without ever interrupting one.  This group is
+    # deliberately separate from release-pr's: GitHub keeps only one
+    # pending run per group, so sharing would let a slow release-pr run
+    # cause a queued release to be evicted — and with release_always =
+    # false, the run that replaced it would be a no-op, silently
+    # skipping the release.  Runs of this job are near-instant no-ops
+    # except on a release-PR merge, so contention here is rare.
+    concurrency:
+      group: release-plz-release-${{ github.ref }}
+      cancel-in-progress: false
     permissions:
       contents: write # create the git tag and the GitHub release
       id-token: write # crates.io Trusted Publishing (OIDC); release-plz mints the token itself
