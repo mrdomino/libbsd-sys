@@ -1,0 +1,36 @@
+name: Lint PR title
+
+# Squash-merge means the PR title becomes the commit subject on main,
+# which is what release-plz parses into changelog entries.  A title that
+# is not a conventional commit lands in the catch-all `other` group
+# instead of being categorized or skipped — see #49, which should have
+# been `ci:` and was dropped into Other instead.
+on:
+  pull_request:
+    types: [opened, reopened, edited]
+
+permissions: {}
+
+jobs:
+  pr-title:
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: read # the action reads the PR title; it never writes
+    concurrency:
+      group: pr-title-${{ github.event.pull_request.number }}
+      cancel-in-progress: true
+    steps:
+      # Upstream recommends pull_request_target so the check also runs on
+      # fork PRs.  We use pull_request instead: this action only reads the
+      # title out of the event payload, so the extra privilege buys nothing
+      # and pull_request_target would need a zizmor dangerous-triggers
+      # exemption.
+      - uses: amannn/action-semantic-pull-request@48f256284bd46cdaab1048c3721360e808335d50 # v6.1.1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          # Types default to conventional-commit-types, which covers
+          # everything release-plz.toml sorts on.  This additionally
+          # requires a lowercase subject, matching existing history and
+          # keeping generated changelog entries consistent.
+          subjectPattern: ^(?![A-Z]).+$
