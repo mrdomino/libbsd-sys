@@ -13,6 +13,9 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read # for actions/checkout; the app token below does the writing
+    # Default `queue: single` is right here, unlike on the release job:
+    # an evicted run loses nothing, because the next one recomputes the
+    # whole release PR from scratch.
     concurrency:
       group: release-plz-${{ github.ref }}
       cancel-in-progress: false
@@ -49,16 +52,15 @@ jobs:
   release:
     runs-on: ubuntu-latest
     environment: crates-io
-    # Serialize publishes without ever interrupting one.  This group is
-    # deliberately separate from release-pr's: GitHub keeps only one
-    # pending run per group, so sharing would let a slow release-pr run
-    # cause a queued release to be evicted — and with release_always =
-    # false, the run that replaced it would be a no-op, silently
-    # skipping the release.  Runs of this job are near-instant no-ops
-    # except on a release-PR merge, so contention here is rare.
+    # Serialize publishes without ever interrupting or dropping one.
+    # `queue: max` is load-bearing: with the default `single`, a queued
+    # run is evicted when a newer one joins the group, and under
+    # release_always = false the run that replaced it would be a no-op,
+    # silently skipping that release.
     concurrency:
       group: release-plz-release-${{ github.ref }}
       cancel-in-progress: false
+      queue: max
     permissions:
       contents: write # create the git tag and the GitHub release
       id-token: write # crates.io Trusted Publishing (OIDC); release-plz mints the token itself
