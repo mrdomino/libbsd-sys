@@ -1,0 +1,46 @@
+# Configuration for release-plz.  See https://release-plz.dev/docs/config
+#
+# The release PR is opened and kept up to date automatically; nothing is
+# tagged or published until that PR is merged.
+
+[workspace]
+# Publish only when the release PR is merged.  With the default (`true`),
+# release-plz publishes on any push to main whose Cargo.toml version is
+# not yet on crates.io, so a hand-edited version would be enough to
+# trigger a release.
+release_always = false
+
+# Run cargo-semver-checks before proposing a version.  This is already
+# the default; it is spelled out because it is the main reason to run
+# release-plz on a -sys crate — the public surface is ~90 extern
+# declarations whose availability is `#[cfg]`-gated per platform, and
+# dropping one is easy to do by accident (see the flopen/flopenat
+# removal in 0.2.0).
+semver_check = true
+
+[changelog]
+# Never let a commit_parser skip a breaking change.
+protect_breaking_commits = true
+
+# Parsers are tried in order and the first match wins, so the skips come
+# first.  The `<!-- N -->` prefixes only fix the order the sections are
+# rendered in; they are stripped from the heading itself.
+#
+# CI-only churn is dropped rather than grouped: it does not ship in the
+# published crate, which excludes `.github/**`.  This assumes Dependabot
+# is configured with `commit-message.prefix` of `chore(deps)` for cargo
+# and `chore(ci)` for github-actions, so the two ecosystems land on
+# opposite sides of that line.
+commit_parsers = [
+  { message = "^Merge (branch|pull request)", skip = true },
+  { message = "^chore\\(release\\)", skip = true },
+  { message = "^chore\\(ci\\)", skip = true },
+  { message = "^ci", skip = true },
+  { message = "^feat", group = "<!-- 0 -->added" },
+  { message = "^changed", group = "<!-- 1 -->changed" },
+  { message = "^deprecated", group = "<!-- 2 -->deprecated" },
+  { message = "^fix", group = "<!-- 3 -->fixed" },
+  { message = "^security", group = "<!-- 4 -->security" },
+  { message = "^chore\\(deps\\)", group = "<!-- 5 -->dependencies" },
+  { message = "^.*", group = "<!-- 6 -->other" },
+]

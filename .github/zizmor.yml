@@ -4,4 +4,4 @@ rules:
   anonymous-definition:
     ignore:
       - ci.yml
-      - release.yaml
+      - release-plz.yml
