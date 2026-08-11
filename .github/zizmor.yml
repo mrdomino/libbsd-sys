@@ -5,4 +5,3 @@ rules:
     ignore:
       - ci.yml
       - release-plz.yml
-      - pr-title.yml
