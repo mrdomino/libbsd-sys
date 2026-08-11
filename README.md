@@ -18,11 +18,13 @@ libbsd-sys = "0.2"
 ```
 
 ## Features
-On Linux, the following crate features are available:
+* `vendored-readpassphrase` (default) supplies `readpassphrase` on NetBSD, whose libc is alone among our supported platforms in not having it, by compiling Todd C. Miller's [vendored ISC-licensed C source][3]. The dependency is gated to `cfg(target_os = "netbsd")`, so on every other platform the feature does nothing at all. Build with `default-features = false` if you would rather not have ISC-licensed code in your dependency tree; `readpassphrase` is then simply missing on NetBSD, as it was before.
+
+On Linux, the following crate features are also available:
 * `static` requests static linkage of `libbsd`.
 * `overlay` requests `libbsd-overlay` instead of `libbsd`, so that downstream crates that compile C code can use plain `<string.h>` instead of `<bsd/string.h>`.
 
-On non-Linux, these features are no-ops.
+On non-Linux, those two features are no-ops.
 
 ## Environment variables
 
@@ -57,3 +59,4 @@ We depend on at least libbsd 0.11.
 [0]: https://man.openbsd.org/readpassphrase.3 "readpassphrase — get a passphrase from the user"
 [1]: https://github.com/mrdomino/readpassphrase-3 "mrdomino/readpassphrase-3: like left-pad, but for passphrases"
 [2]: https://libbsd.freedesktop.org/wiki/ "libbsd"
+[3]: https://crates.io/crates/tcm-readpassphrase-vendored "tcm-readpassphrase-vendored: vendored BSD readpassphrase C code"
