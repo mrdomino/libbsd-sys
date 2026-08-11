@@ -36,7 +36,13 @@ overlay = []
 # mode_t, pid_t, uid_t, gid_t, time_t, wchar_t), so the floor is set by
 # the oldest release that builds rather than by anything we call: 0.2.0
 # fails to compile itself on the BSD targets (`cannot find type size_t`).
-libc = "0.2.1"
+#
+# `default-features = false` turns off `libc/std`.  This crate is
+# `#![no_std]`, and the whole reason the NetBSD dependency below is
+# floored at 0.2.2 is to keep std out of the graph; leaving libc's
+# default on would put it straight back in.  Nothing here needs it —
+# the type aliases and `extern` declarations are unconditional.
+libc = { version = "0.2.1", default-features = false }
 
 [target.'cfg(target_os = "netbsd")'.dependencies]
 # 0.2.2 is the release that made the crate `#![no_std]`; 0.2.0/0.2.1 pull
