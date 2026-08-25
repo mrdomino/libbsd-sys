@@ -18,7 +18,7 @@ libbsd-sys = "0.3"
 ```
 
 ## Features
-* `vendored-readpassphrase` (default) supplies `readpassphrase` on NetBSD, whose libc is alone among our supported platforms in not having it, by compiling Todd C. Miller's [vendored ISC-licensed C source][3]. The dependency is gated to `cfg(target_os = "netbsd")`, so on every other platform the feature does nothing at all. Build with `default-features = false` if you would rather not have ISC-licensed code in your dependency tree; `readpassphrase` is then simply missing on NetBSD, as it was before.
+* `vendored-readpassphrase` (default) supplies `readpassphrase` on NetBSD, whose libc is alone among our supported platforms in not having it, by compiling Todd C. Miller's [vendored ISC-licensed C source][3]. The dependency is gated to `cfg(target_os = "netbsd")`, so on every other platform the feature does nothing at all. Build with `default-features = false` if you would rather not have ISC-licensed code in your dependency tree; `readpassphrase` is then simply missing on NetBSD.
 
 On Linux, the following crate features are also available:
 * `static` requests static linkage of `libbsd`.
